@@ -308,6 +308,7 @@ export function fetchLsifIndexes({
                             indexer
                             indexerArgs
                             outfile
+                            logContents
                             placeInQueue
                         }
 
@@ -368,6 +369,7 @@ export function fetchLsifIndexes({
                                 indexer
                                 indexerArgs
                                 outfile
+                                logContents
                                 placeInQueue
                             }
 
@@ -433,6 +435,7 @@ export function fetchLsifIndex({ id }: { id: string }): Observable<Index | null>
                         indexer
                         indexerArgs
                         outfile
+                        logContents
                         placeInQueue
                     }
                 }

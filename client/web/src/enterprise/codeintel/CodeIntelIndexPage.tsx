@@ -236,7 +236,11 @@ export const CodeIntelIndexPage: FunctionComponent<CodeIntelIndexPageProps> = ({
 
                             <tr>
                                 <td>Log contents</td>
-                                <td>{indexOrError.logContents}</td>
+                                <td>
+                                    <textarea rows={30} cols={90} disabled={true}>
+                                        {indexOrError.logContents}
+                                    </textarea>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
