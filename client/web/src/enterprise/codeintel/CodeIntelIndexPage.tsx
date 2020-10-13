@@ -167,9 +167,6 @@ export const CodeIntelIndexPage: FunctionComponent<CodeIntelIndexPageProps> = ({
                                 </td>
                             </tr>
 
-                            {/* TODO(efritz) - add docker steps */}
-                            {/* TODO(efritz) - add logs contents */}
-
                             <tr>
                                 <td>Root</td>
                                 <td>
