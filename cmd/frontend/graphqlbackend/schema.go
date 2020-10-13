@@ -7281,6 +7281,11 @@ type LSIFIndex implements Node {
     outfile: String
 
     """
+    TODO
+    """
+    logContents: String
+
+    """
     The rank of this index in the queue. The value of this field is null if the index has been processed.
     """
     placeInQueue: Int

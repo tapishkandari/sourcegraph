@@ -23,6 +23,8 @@ const Header: FunctionComponent<{}> = () => (
         <tr>
             <th>Repository</th>
             <th>Commit</th>
+            <th>Indexer</th>
+            <th>Root</th>
             <th>State</th>
             <th>Last Activity</th>
             <th />

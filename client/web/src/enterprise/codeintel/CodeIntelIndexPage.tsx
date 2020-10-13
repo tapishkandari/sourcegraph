@@ -233,6 +233,11 @@ export const CodeIntelIndexPage: FunctionComponent<CodeIntelIndexPageProps> = ({
                                     )}
                                 </td>
                             </tr>
+
+                            <tr>
+                                <td>Log contents</td>
+                                <td>{indexOrError.logContents}</td>
+                            </tr>
                         </tbody>
                     </table>
 
