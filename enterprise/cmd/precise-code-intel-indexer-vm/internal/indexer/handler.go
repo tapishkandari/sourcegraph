@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/inconshreveable/log15"
 	"github.com/pkg/errors"
-	indexmanager "github.com/sourcegraph/sourcegraph/enterprise/cmd/precise-code-intel-indexer-vm/internal/index_manager"
 	queue "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/client"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
@@ -24,7 +23,7 @@ const uploadRoute = "/.internal-code-intel/lsif/upload"
 
 type Handler struct {
 	queueClient   queue.Client
-	indexManager  *indexmanager.Manager
+	idSet         *IDSet
 	newCommander  func(*IndexJobLogger) Commander
 	options       HandlerOptions
 	uuidGenerator func() (uuid.UUID, error)
@@ -70,8 +69,8 @@ func (h *Handler) Handle(ctx context.Context, s workerutil.Store, record workeru
 
 	commander := h.newCommander(logger)
 
-	h.indexManager.AddID(index.ID)
-	defer h.indexManager.RemoveID(index.ID)
+	h.idSet.Add(index.ID)
+	defer h.idSet.Remove(index.ID)
 
 	repoDir, err := h.fetchRepository(ctx, commander, index.RepositoryName, index.Commit)
 	if err != nil {

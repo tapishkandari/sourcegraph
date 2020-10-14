@@ -8,8 +8,6 @@ import (
 	"github.com/inconshreveable/log15"
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sourcegraph/sourcegraph/enterprise/cmd/precise-code-intel-indexer-vm/internal/heartbeat"
-	indexmanager "github.com/sourcegraph/sourcegraph/enterprise/cmd/precise-code-intel-indexer-vm/internal/index_manager"
 	"github.com/sourcegraph/sourcegraph/enterprise/cmd/precise-code-intel-indexer-vm/internal/indexer"
 	queue "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/client"
 	"github.com/sourcegraph/sourcegraph/internal/debugserver"
@@ -61,14 +59,12 @@ func main() {
 		frontendURL,
 		internalProxyAuthToken,
 	)
-	indexManager := indexmanager.New()
+	idSet := indexer.NewIDSet()
 
 	server := httpserver.New(Port, func(router *mux.Router) {})
-	heartbeater := heartbeat.NewHeartbeater(context.Background(), queueClient, indexManager, heartbeat.HeartbeaterOptions{
-		Interval: indexerHeartbeatInterval,
-	})
+	heartbeater := indexer.NewHeartbeat(context.Background(), queueClient, idSet, indexerHeartbeatInterval)
 	indexerMetrics := indexer.NewIndexerMetrics(observationContext)
-	indexer := indexer.NewIndexer(context.Background(), queueClient, indexManager, indexer.IndexerOptions{
+	indexer := indexer.NewIndexer(context.Background(), queueClient, idSet, indexer.IndexerOptions{
 		NumIndexers: numContainers,
 		Interval:    indexerPollInterval,
 		Metrics:     indexerMetrics,

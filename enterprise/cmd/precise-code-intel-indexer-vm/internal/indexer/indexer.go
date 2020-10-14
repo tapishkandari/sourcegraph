@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	indexmanager "github.com/sourcegraph/sourcegraph/enterprise/cmd/precise-code-intel-indexer-vm/internal/index_manager"
 	queue "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/client"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 )
@@ -17,10 +16,10 @@ type IndexerOptions struct {
 	HandlerOptions HandlerOptions
 }
 
-func NewIndexer(ctx context.Context, queueClient queue.Client, indexManager *indexmanager.Manager, options IndexerOptions) *workerutil.Worker {
+func NewIndexer(ctx context.Context, queueClient queue.Client, idSet *IDSet, options IndexerOptions) *workerutil.Worker {
 	handler := &Handler{
 		queueClient:   queueClient,
-		indexManager:  indexManager,
+		idSet:         idSet,
 		newCommander:  NewDefaultCommander,
 		options:       options.HandlerOptions,
 		uuidGenerator: uuid.NewRandom,

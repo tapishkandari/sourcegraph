@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	indexmanager "github.com/sourcegraph/sourcegraph/enterprise/cmd/precise-code-intel-indexer-vm/internal/index_manager"
 	queuemocks "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/client/mocks"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
@@ -18,12 +17,12 @@ func init() {
 
 func TestHandleWithDocker(t *testing.T) {
 	queueClient := queuemocks.NewMockClient()
-	indexManager := indexmanager.New()
+	idSet := NewIDSet()
 	commander := NewMockCommander()
 
 	handler := &Handler{
 		queueClient:  queueClient,
-		indexManager: indexManager,
+		idSet:        idSet,
 		newCommander: func(*IndexJobLogger) Commander { return commander },
 		options: HandlerOptions{
 			FrontendURL:           "https://sourcegraph.test:1234",
@@ -90,12 +89,12 @@ func TestHandleWithDocker(t *testing.T) {
 
 func TestHandleWithFirecracker(t *testing.T) {
 	queueClient := queuemocks.NewMockClient()
-	indexManager := indexmanager.New()
+	idSet := NewIDSet()
 	commander := NewMockCommander()
 
 	handler := &Handler{
 		queueClient:  queueClient,
-		indexManager: indexManager,
+		idSet:        idSet,
 		newCommander: func(*IndexJobLogger) Commander { return commander },
 		options: HandlerOptions{
 			FrontendURL:           "https://sourcegraph.test:1234",
