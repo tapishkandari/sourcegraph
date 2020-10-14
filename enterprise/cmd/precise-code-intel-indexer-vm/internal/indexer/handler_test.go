@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	queuemocks "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/client/mocks"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
@@ -16,7 +15,7 @@ func init() {
 }
 
 func TestHandleWithDocker(t *testing.T) {
-	queueClient := queuemocks.NewMockClient()
+	queueClient := NewMockQueueClient()
 	idSet := NewIDSet()
 	commander := NewMockCommander()
 
@@ -88,7 +87,7 @@ func TestHandleWithDocker(t *testing.T) {
 }
 
 func TestHandleWithFirecracker(t *testing.T) {
-	queueClient := queuemocks.NewMockClient()
+	queueClient := NewMockQueueClient()
 	idSet := NewIDSet()
 	commander := NewMockCommander()
 

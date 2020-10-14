@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/inconshreveable/log15"
 	"github.com/pkg/errors"
-	queue "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/client"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 )
@@ -22,11 +21,18 @@ const uploadImage = "sourcegraph/src-cli:latest"
 const uploadRoute = "/.internal-code-intel/lsif/upload"
 
 type Handler struct {
-	queueClient   queue.Client
+	queueClient   queueClient
 	idSet         *IDSet
 	newCommander  func(*IndexJobLogger) Commander
 	options       HandlerOptions
 	uuidGenerator func() (uuid.UUID, error)
+}
+
+type queueClient interface {
+	Dequeue(ctx context.Context) (index store.Index, _ bool, _ error)
+	SetLogContents(ctx context.Context, indexID int, contents string) error
+	Complete(ctx context.Context, indexID int, indexErr error) error
+	Heartbeat(ctx context.Context, indexIDs []int) error
 }
 
 var _ workerutil.Handler = &Handler{}

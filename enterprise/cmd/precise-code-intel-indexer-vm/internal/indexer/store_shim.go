@@ -4,13 +4,12 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	queue "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/client"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 )
 
 // storeShim converts a queue client into a workerutil.Store.
 type storeShim struct {
-	queueClient queue.Client
+	queueClient queueClient
 }
 
 var _ workerutil.Store = &storeShim{}

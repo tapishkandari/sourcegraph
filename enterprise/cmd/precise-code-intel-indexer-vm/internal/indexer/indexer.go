@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	queue "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/client"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 )
 
@@ -16,7 +15,7 @@ type IndexerOptions struct {
 	HandlerOptions HandlerOptions
 }
 
-func NewIndexer(ctx context.Context, queueClient queue.Client, idSet *IDSet, options IndexerOptions) *workerutil.Worker {
+func NewIndexer(ctx context.Context, queueClient queueClient, idSet *IDSet, options IndexerOptions) *workerutil.Worker {
 	handler := &Handler{
 		queueClient:   queueClient,
 		idSet:         idSet,
