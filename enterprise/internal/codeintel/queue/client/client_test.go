@@ -198,8 +198,8 @@ func TestHeartbeatBadResponse(t *testing.T) {
 	}
 }
 
-func testClient(frontendURL string) *client {
-	return &client{
+func testClient(frontendURL string) *Client {
+	return &Client{
 		frontendURL: frontendURL,
 		indexerName: "deadbeef",
 		authToken:   "hunter2",

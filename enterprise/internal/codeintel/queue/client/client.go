@@ -23,33 +23,13 @@ import (
 )
 
 // Client is the interface to the precise-code-intel-index-manager.
-type Client interface {
-	// Dequeue returns a queued index record for processing. This record can be marked as completed
-	// or failed by calling Complete with the same identifier. While processing, the identifier of
-	// the record must appear in all heartbeat requests.
-	Dequeue(ctx context.Context) (index store.Index, _ bool, _ error)
-
-	// SetLogContents updates a currently processing index record with the given log contents.
-	SetLogContents(ctx context.Context, indexID int, contents string) error
-
-	// Complete marks the target index record as complete or errored depending on the existence of an
-	// error message.
-	Complete(ctx context.Context, indexID int, indexErr error) error
-
-	// Heartbeat hints to the index manager that the indexer system is has not been lost and should not
-	// release any of the index records assigned to the indexer.
-	Heartbeat(ctx context.Context, indexIDs []int) error
-}
-
-type client struct {
+type Client struct {
 	indexerName string
 	frontendURL string
 	authToken   string
 	httpClient  *http.Client
 	userAgent   string
 }
-
-var _ Client = &client{}
 
 var requestMeter = metrics.NewRequestMeter("precise_code_intel_index_manager", "Total number of requests sent to precise-code-intel-index-manager.")
 
@@ -67,8 +47,8 @@ var defaultTransport = &ot.Transport{
 }
 
 // NewClient creates a new Client with the given unique name targetting hte given external frontend API.
-func NewClient(indexerName, frontendURL, authToken string) Client {
-	return &client{
+func NewClient(indexerName, frontendURL, authToken string) *Client {
+	return &Client{
 		indexerName: indexerName,
 		httpClient:  &http.Client{Transport: defaultTransport},
 		frontendURL: frontendURL,
@@ -80,7 +60,7 @@ func NewClient(indexerName, frontendURL, authToken string) Client {
 // Dequeue returns a queued index record for processing. This record can be marked as completed
 // or failed by calling Complete with the same identifier. While processing, the identifier of
 // the record must appear in all heartbeat requests.
-func (c *client) Dequeue(ctx context.Context) (index store.Index, _ bool, _ error) {
+func (c *Client) Dequeue(ctx context.Context) (index store.Index, _ bool, _ error) {
 	url, err := makeIndexManagerURL(c.frontendURL, c.authToken, "dequeue")
 	if err != nil {
 		return store.Index{}, false, err
@@ -110,7 +90,7 @@ func (c *client) Dequeue(ctx context.Context) (index store.Index, _ bool, _ erro
 }
 
 // SetLogContents updates a currently processing index record with the given log contents.
-func (c *client) SetLogContents(ctx context.Context, indexID int, contents string) error {
+func (c *Client) SetLogContents(ctx context.Context, indexID int, contents string) error {
 	url, err := makeIndexManagerURL(c.frontendURL, c.authToken, "setlog")
 	if err != nil {
 		return err
@@ -130,7 +110,7 @@ func (c *client) SetLogContents(ctx context.Context, indexID int, contents strin
 
 // Complete marks the target index record as complete or errored depending on the existence of an
 // error message.
-func (c *client) Complete(ctx context.Context, indexID int, indexErr error) error {
+func (c *Client) Complete(ctx context.Context, indexID int, indexErr error) error {
 	url, err := makeIndexManagerURL(c.frontendURL, c.authToken, "complete")
 	if err != nil {
 		return err
@@ -154,7 +134,7 @@ func (c *client) Complete(ctx context.Context, indexID int, indexErr error) erro
 
 // Heartbeat hints to the index manager that the indexer system is has not been lost and should not
 // release any of the index records assigned to the indexer.
-func (c *client) Heartbeat(ctx context.Context, indexIDs []int) error {
+func (c *Client) Heartbeat(ctx context.Context, indexIDs []int) error {
 	url, err := makeIndexManagerURL(c.frontendURL, c.authToken, "heartbeat")
 	if err != nil {
 		return err
@@ -172,7 +152,7 @@ func (c *client) Heartbeat(ctx context.Context, indexIDs []int) error {
 }
 
 // doAndDrop performs an HTTP request to the frontend and ignores the body contents.
-func (c *client) doAndDrop(ctx context.Context, method string, url *url.URL, payload io.Reader) error {
+func (c *Client) doAndDrop(ctx context.Context, method string, url *url.URL, payload io.Reader) error {
 	hasContent, body, err := c.do(ctx, method, url, payload)
 	if err != nil {
 		return err
@@ -184,7 +164,7 @@ func (c *client) doAndDrop(ctx context.Context, method string, url *url.URL, pay
 }
 
 // do performs an HTTP request to the frontend and returns the body content as a reader.
-func (c *client) do(ctx context.Context, method string, url *url.URL, body io.Reader) (hasContent bool, _ io.ReadCloser, err error) {
+func (c *Client) do(ctx context.Context, method string, url *url.URL, body io.Reader) (hasContent bool, _ io.ReadCloser, err error) {
 	span, ctx := ot.StartSpanFromContext(ctx, "do")
 	defer func() {
 		if err != nil {
