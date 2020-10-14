@@ -1,4 +1,4 @@
-package indexer
+package command
 
 import (
 	"context"
@@ -11,8 +11,20 @@ import (
 	"github.com/inconshreveable/log15"
 )
 
+type Runner interface {
+	Run(ctx context.Context, logger *Logger, command ...string) error
+}
+
+type defaultRunner struct{}
+
+var DefaultRunner = &defaultRunner{}
+
+func (*defaultRunner) Run(ctx context.Context, logger *Logger, command ...string) error {
+	return runCommand(ctx, logger, command...)
+}
+
 // runCommand invokes the given command on the host machine.
-func runCommand(ctx context.Context, logger *IndexJobLogger, command ...string) error {
+func runCommand(ctx context.Context, logger *Logger, command ...string) error {
 	if len(command) == 0 {
 		return fmt.Errorf("no command supplied")
 	}

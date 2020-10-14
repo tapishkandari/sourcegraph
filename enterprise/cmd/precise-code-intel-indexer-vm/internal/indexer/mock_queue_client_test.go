@@ -4,7 +4,6 @@ package indexer
 
 import (
 	"context"
-	store "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"sync"
 )
 
@@ -37,8 +36,8 @@ func NewMockQueueClient() *MockQueueClient {
 			},
 		},
 		DequeueFunc: &QueueClientDequeueFunc{
-			defaultHook: func(context.Context) (store.Index, bool, error) {
-				return store.Index{}, false, nil
+			defaultHook: func(context.Context) (Index, bool, error) {
+				return Index{}, false, nil
 			},
 		},
 		HeartbeatFunc: &QueueClientHeartbeatFunc{
@@ -60,7 +59,7 @@ func NewMockQueueClient() *MockQueueClient {
 // It is redefined here as it is unexported in the source packge.
 type surrogateMockQueueClient interface {
 	Complete(context.Context, int, error) error
-	Dequeue(context.Context) (store.Index, bool, error)
+	Dequeue(context.Context) (Index, bool, error)
 	Heartbeat(context.Context, []int) error
 	SetLogContents(context.Context, int, string) error
 }
@@ -197,15 +196,15 @@ func (c QueueClientCompleteFuncCall) Results() []interface{} {
 // QueueClientDequeueFunc describes the behavior when the Dequeue method of
 // the parent MockQueueClient instance is invoked.
 type QueueClientDequeueFunc struct {
-	defaultHook func(context.Context) (store.Index, bool, error)
-	hooks       []func(context.Context) (store.Index, bool, error)
+	defaultHook func(context.Context) (Index, bool, error)
+	hooks       []func(context.Context) (Index, bool, error)
 	history     []QueueClientDequeueFuncCall
 	mutex       sync.Mutex
 }
 
 // Dequeue delegates to the next hook function in the queue and stores the
 // parameter and result values of this invocation.
-func (m *MockQueueClient) Dequeue(v0 context.Context) (store.Index, bool, error) {
+func (m *MockQueueClient) Dequeue(v0 context.Context) (Index, bool, error) {
 	r0, r1, r2 := m.DequeueFunc.nextHook()(v0)
 	m.DequeueFunc.appendCall(QueueClientDequeueFuncCall{v0, r0, r1, r2})
 	return r0, r1, r2
@@ -214,7 +213,7 @@ func (m *MockQueueClient) Dequeue(v0 context.Context) (store.Index, bool, error)
 // SetDefaultHook sets function that is called when the Dequeue method of
 // the parent MockQueueClient instance is invoked and the hook queue is
 // empty.
-func (f *QueueClientDequeueFunc) SetDefaultHook(hook func(context.Context) (store.Index, bool, error)) {
+func (f *QueueClientDequeueFunc) SetDefaultHook(hook func(context.Context) (Index, bool, error)) {
 	f.defaultHook = hook
 }
 
@@ -222,7 +221,7 @@ func (f *QueueClientDequeueFunc) SetDefaultHook(hook func(context.Context) (stor
 // Dequeue method of the parent MockQueueClient instance inovkes the hook at
 // the front of the queue and discards it. After the queue is empty, the
 // default hook function is invoked for any future action.
-func (f *QueueClientDequeueFunc) PushHook(hook func(context.Context) (store.Index, bool, error)) {
+func (f *QueueClientDequeueFunc) PushHook(hook func(context.Context) (Index, bool, error)) {
 	f.mutex.Lock()
 	f.hooks = append(f.hooks, hook)
 	f.mutex.Unlock()
@@ -230,21 +229,21 @@ func (f *QueueClientDequeueFunc) PushHook(hook func(context.Context) (store.Inde
 
 // SetDefaultReturn calls SetDefaultDefaultHook with a function that returns
 // the given values.
-func (f *QueueClientDequeueFunc) SetDefaultReturn(r0 store.Index, r1 bool, r2 error) {
-	f.SetDefaultHook(func(context.Context) (store.Index, bool, error) {
+func (f *QueueClientDequeueFunc) SetDefaultReturn(r0 Index, r1 bool, r2 error) {
+	f.SetDefaultHook(func(context.Context) (Index, bool, error) {
 		return r0, r1, r2
 	})
 }
 
 // PushReturn calls PushDefaultHook with a function that returns the given
 // values.
-func (f *QueueClientDequeueFunc) PushReturn(r0 store.Index, r1 bool, r2 error) {
-	f.PushHook(func(context.Context) (store.Index, bool, error) {
+func (f *QueueClientDequeueFunc) PushReturn(r0 Index, r1 bool, r2 error) {
+	f.PushHook(func(context.Context) (Index, bool, error) {
 		return r0, r1, r2
 	})
 }
 
-func (f *QueueClientDequeueFunc) nextHook() func(context.Context) (store.Index, bool, error) {
+func (f *QueueClientDequeueFunc) nextHook() func(context.Context) (Index, bool, error) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -282,7 +281,7 @@ type QueueClientDequeueFuncCall struct {
 	Arg0 context.Context
 	// Result0 is the value of the 1st result returned from this method
 	// invocation.
-	Result0 store.Index
+	Result0 Index
 	// Result1 is the value of the 2nd result returned from this method
 	// invocation.
 	Result1 bool

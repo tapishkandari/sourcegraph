@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
 func init() {
@@ -20,9 +19,9 @@ func TestHandleWithDocker(t *testing.T) {
 	commander := NewMockCommander()
 
 	handler := &Handler{
-		queueClient:  queueClient,
-		idSet:        idSet,
-		newCommander: func(*IndexJobLogger) Commander { return commander },
+		queueClient: queueClient,
+		idSet:       idSet,
+		commander:   commander,
 		options: HandlerOptions{
 			FrontendURL:           "https://sourcegraph.test:1234",
 			FrontendURLFromDocker: "https://sourcegraph.test:5432",
@@ -34,11 +33,11 @@ func TestHandleWithDocker(t *testing.T) {
 		uuidGenerator: uuid.NewRandom,
 	}
 
-	index := store.Index{
+	index := Index{
 		ID:             42,
 		RepositoryName: "github.com/sourcegraph/sourcegraph",
 		Commit:         "e2249f2173e8ca0c8c2541644847e7bf01aaef4a",
-		DockerSteps: []store.DockerStep{
+		DockerSteps: []DockerStep{
 			{
 				Root:     "r1",
 				Image:    "install1",
@@ -79,7 +78,7 @@ func TestHandleWithDocker(t *testing.T) {
 		calls := commander.RunFunc.History()
 
 		for i, expectedCall := range expectedCalls {
-			if diff := cmp.Diff(expectedCall, strings.Join(calls[i].Arg1, " ")); diff != "" {
+			if diff := cmp.Diff(expectedCall, strings.Join(calls[i].Arg2, " ")); diff != "" {
 				t.Errorf("unexpected command (-want +got):\n%s", diff)
 			}
 		}
@@ -92,9 +91,9 @@ func TestHandleWithFirecracker(t *testing.T) {
 	commander := NewMockCommander()
 
 	handler := &Handler{
-		queueClient:  queueClient,
-		idSet:        idSet,
-		newCommander: func(*IndexJobLogger) Commander { return commander },
+		queueClient: queueClient,
+		idSet:       idSet,
+		commander:   commander,
 		options: HandlerOptions{
 			FrontendURL:           "https://sourcegraph.test:1234",
 			FrontendURLFromDocker: "https://sourcegraph.test:5432",
@@ -111,11 +110,11 @@ func TestHandleWithFirecracker(t *testing.T) {
 		},
 	}
 
-	index := store.Index{
+	index := Index{
 		ID:             42,
 		RepositoryName: "github.com/sourcegraph/sourcegraph",
 		Commit:         "e2249f2173e8ca0c8c2541644847e7bf01aaef4a",
-		DockerSteps: []store.DockerStep{
+		DockerSteps: []DockerStep{
 			{
 				Root:     "r1",
 				Image:    "install1",
@@ -179,7 +178,7 @@ func TestHandleWithFirecracker(t *testing.T) {
 		calls := commander.RunFunc.History()
 
 		for i, expectedCall := range expectedCalls {
-			if diff := cmp.Diff(expectedCall, strings.Join(calls[i].Arg1, " ")); diff != "" {
+			if diff := cmp.Diff(expectedCall, strings.Join(calls[i].Arg2, " ")); diff != "" {
 				t.Errorf("unexpected command (-want +got):\n%s", diff)
 			}
 		}

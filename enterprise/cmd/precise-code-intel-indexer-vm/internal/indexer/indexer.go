@@ -19,7 +19,7 @@ func NewIndexer(ctx context.Context, queueClient queueClient, idSet *IDSet, opti
 	handler := &Handler{
 		queueClient:   queueClient,
 		idSet:         idSet,
-		newCommander:  NewDefaultCommander,
+		commander:     DefaultCommander,
 		options:       options.HandlerOptions,
 		uuidGenerator: uuid.NewRandom,
 	}
