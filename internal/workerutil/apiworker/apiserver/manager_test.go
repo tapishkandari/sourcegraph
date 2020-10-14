@@ -1,4 +1,4 @@
-package indexmanager
+package apiserver
 
 import (
 	"context"
@@ -8,17 +8,15 @@ import (
 
 	"github.com/efritz/glock"
 	"github.com/keegancsmith/sqlf"
-	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
-	storemocks "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store/mocks"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 	dbworkerstore "github.com/sourcegraph/sourcegraph/internal/workerutil/dbworker/store"
 	workerstoremocks "github.com/sourcegraph/sourcegraph/internal/workerutil/dbworker/store/mocks"
 )
 
 func TestProcessSuccess(t *testing.T) {
-	mockStore := storemocks.NewMockStore()
+	mockStore := NewMockXStore()
 	mockWorkerStore := workerstoremocks.NewMockStore()
-	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.PushReturn(store.Index{ID: 42}, mockWorkerStore, true, nil)
+	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.PushReturn(testRecord{ID: 42}, mockWorkerStore, true, nil)
 	mockWorkerStore.MarkCompleteFunc.SetDefaultReturn(true, nil)
 	clock := glock.NewMockClock()
 
@@ -36,8 +34,8 @@ func TestProcessSuccess(t *testing.T) {
 	if !dequeued {
 		t.Fatalf("expected a record")
 	}
-	if index.ID != 42 {
-		t.Fatalf("unexpected record id. want=%d have=%d", 42, index.ID)
+	if index.RecordID() != 42 {
+		t.Fatalf("unexpected record id. want=%d have=%d", 42, index.RecordID())
 	}
 
 	found, err := manager.Complete(context.Background(), "deadbeef", 42, "")
@@ -62,9 +60,9 @@ func TestProcessSuccess(t *testing.T) {
 }
 
 func TestProcessFailure(t *testing.T) {
-	mockStore := storemocks.NewMockStore()
+	mockStore := NewMockXStore()
 	mockWorkerStore := workerstoremocks.NewMockStore()
-	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.PushReturn(store.Index{ID: 42}, mockWorkerStore, true, nil)
+	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.PushReturn(testRecord{ID: 42}, mockWorkerStore, true, nil)
 	mockWorkerStore.MarkErroredFunc.SetDefaultReturn(true, nil)
 	clock := glock.NewMockClock()
 
@@ -82,8 +80,8 @@ func TestProcessFailure(t *testing.T) {
 	if !dequeued {
 		t.Fatalf("expected a record")
 	}
-	if index.ID != 42 {
-		t.Fatalf("unexpected record id. want=%d have=%d", 42, index.ID)
+	if index.RecordID() != 42 {
+		t.Fatalf("unexpected record id. want=%d have=%d", 42, index.RecordID())
 	}
 
 	found, err := manager.Complete(context.Background(), "deadbeef", 42, "oops")
@@ -108,10 +106,10 @@ func TestProcessFailure(t *testing.T) {
 }
 
 func TestProcessSetLogContents(t *testing.T) {
-	mockStore := storemocks.NewMockStore()
+	mockStore := NewMockXStore()
 	mockStore.WithFunc.SetDefaultReturn(mockStore)
 	mockWorkerStore := workerstoremocks.NewMockStore()
-	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.PushReturn(store.Index{ID: 42}, mockWorkerStore, true, nil)
+	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.PushReturn(testRecord{ID: 42}, mockWorkerStore, true, nil)
 	mockWorkerStore.MarkCompleteFunc.SetDefaultReturn(true, nil)
 	clock := glock.NewMockClock()
 
@@ -129,8 +127,8 @@ func TestProcessSetLogContents(t *testing.T) {
 	if !dequeued {
 		t.Fatalf("expected a record")
 	}
-	if index.ID != 42 {
-		t.Fatalf("unexpected record id. want=%d have=%d", 42, index.ID)
+	if index.RecordID() != 42 {
+		t.Fatalf("unexpected record id. want=%d have=%d", 42, index.RecordID())
 	}
 
 	if err := manager.SetLogContents(context.Background(), "deadbeef", 42, "test payload"); err != nil {
@@ -169,9 +167,9 @@ func TestProcessSetLogContents(t *testing.T) {
 }
 
 func TestProcessIndexerMismatch(t *testing.T) {
-	mockStore := storemocks.NewMockStore()
+	mockStore := NewMockXStore()
 	mockWorkerStore := workerstoremocks.NewMockStore()
-	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.PushReturn(store.Index{ID: 42}, mockWorkerStore, true, nil)
+	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.PushReturn(testRecord{ID: 42}, mockWorkerStore, true, nil)
 	clock := glock.NewMockClock()
 
 	manager := newManager(mockStore, mockWorkerStore, ManagerOptions{
@@ -188,8 +186,8 @@ func TestProcessIndexerMismatch(t *testing.T) {
 	if !dequeued {
 		t.Fatalf("expected a record")
 	}
-	if index.ID != 42 {
-		t.Fatalf("unexpected record id. want=%d have=%d", 42, index.ID)
+	if index.RecordID() != 42 {
+		t.Fatalf("unexpected record id. want=%d have=%d", 42, index.RecordID())
 	}
 
 	found, err := manager.Complete(context.Background(), "livebeef", 42, "oops")
@@ -206,7 +204,7 @@ func TestProcessIndexerMismatch(t *testing.T) {
 }
 
 func TestBoundedTransactions(t *testing.T) {
-	mockStore := storemocks.NewMockStore()
+	mockStore := NewMockXStore()
 	mockWorkerStore := workerstoremocks.NewMockStore()
 	mockWorkerStore.MarkCompleteFunc.SetDefaultReturn(true, nil)
 	clock := glock.NewMockClock()
@@ -214,7 +212,7 @@ func TestBoundedTransactions(t *testing.T) {
 	calls := 0
 	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.SetDefaultHook(func(ctx context.Context, conds []*sqlf.Query) (workerutil.Record, dbworkerstore.Store, bool, error) {
 		calls++
-		return store.Index{ID: calls + 10}, mockWorkerStore, true, nil
+		return testRecord{ID: calls + 10}, mockWorkerStore, true, nil
 	})
 
 	manager := newManager(mockStore, mockWorkerStore, ManagerOptions{
@@ -232,8 +230,8 @@ func TestBoundedTransactions(t *testing.T) {
 		if !dequeued {
 			t.Fatalf("expected a record")
 		}
-		if index.ID != i+10 {
-			t.Fatalf("unexpected record id. want=%d have=%d", i+10, index.ID)
+		if index.RecordID() != i+10 {
+			t.Fatalf("unexpected record id. want=%d have=%d", i+10, index.RecordID())
 		}
 	}
 
@@ -264,7 +262,7 @@ func TestBoundedTransactions(t *testing.T) {
 }
 
 func TestHeartbeatRemovesUnknownIndexes(t *testing.T) {
-	mockStore := storemocks.NewMockStore()
+	mockStore := NewMockXStore()
 	mockWorkerStore := workerstoremocks.NewMockStore()
 	mockWorkerStore.MarkCompleteFunc.SetDefaultReturn(true, nil)
 	clock := glock.NewMockClock()
@@ -272,7 +270,7 @@ func TestHeartbeatRemovesUnknownIndexes(t *testing.T) {
 	calls := 0
 	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.SetDefaultHook(func(ctx context.Context, conds []*sqlf.Query) (workerutil.Record, dbworkerstore.Store, bool, error) {
 		calls++
-		return store.Index{ID: calls + 10}, mockWorkerStore, true, nil
+		return testRecord{ID: calls + 10}, mockWorkerStore, true, nil
 	})
 
 	manager := newManager(mockStore, mockWorkerStore, ManagerOptions{
@@ -331,7 +329,7 @@ func TestHeartbeatRemovesUnknownIndexes(t *testing.T) {
 }
 
 func TestUnresponsiveIndexer(t *testing.T) {
-	mockStore := storemocks.NewMockStore()
+	mockStore := NewMockXStore()
 	mockWorkerStore := workerstoremocks.NewMockStore()
 	mockWorkerStore.MarkCompleteFunc.SetDefaultReturn(true, nil)
 	clock := glock.NewMockClock()
@@ -339,7 +337,7 @@ func TestUnresponsiveIndexer(t *testing.T) {
 	calls := 0
 	mockWorkerStore.DequeueWithIndependentTransactionContextFunc.SetDefaultHook(func(ctx context.Context, conds []*sqlf.Query) (workerutil.Record, dbworkerstore.Store, bool, error) {
 		calls++
-		return store.Index{ID: calls + 10}, mockWorkerStore, true, nil
+		return testRecord{ID: calls + 10}, mockWorkerStore, true, nil
 	})
 
 	manager := newManager(mockStore, mockWorkerStore, ManagerOptions{
@@ -388,3 +386,7 @@ func TestUnresponsiveIndexer(t *testing.T) {
 		t.Errorf("unexpected done call count. want=%d have=%d", 5, callCount)
 	}
 }
+
+type testRecord struct{ ID int }
+
+func (r testRecord) RecordID() int { return r.ID }

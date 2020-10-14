@@ -1,4 +1,4 @@
-package client
+package apiclient
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/types"
 	"github.com/sourcegraph/sourcegraph/internal/metrics"
 	"github.com/sourcegraph/sourcegraph/internal/trace/ot"
 	"golang.org/x/net/context/ctxhttp"
@@ -30,6 +29,7 @@ type Client struct {
 	userAgent   string
 }
 
+// TODO - configure
 var requestMeter = metrics.NewRequestMeter("precise_code_intel_index_manager", "Total number of requests sent to precise-code-intel-index-manager.")
 
 // defaultTransport is the default transport for precise code intel index manager clients.
@@ -65,7 +65,7 @@ func (c *Client) Dequeue(ctx context.Context, index interface{}) (bool, error) {
 		return false, err
 	}
 
-	payload, err := marshalPayload(types.DequeueRequest{
+	payload, err := marshalPayload(DequeueRequest{
 		IndexerName: c.indexerName,
 	})
 	if err != nil {
@@ -95,7 +95,7 @@ func (c *Client) SetLogContents(ctx context.Context, indexID int, contents strin
 		return err
 	}
 
-	payload, err := marshalPayload(types.SetLogRequest{
+	payload, err := marshalPayload(SetLogRequest{
 		IndexerName: c.indexerName,
 		IndexID:     indexID,
 		Contents:    contents,
@@ -115,7 +115,7 @@ func (c *Client) Complete(ctx context.Context, indexID int, indexErr error) erro
 		return err
 	}
 
-	rawPayload := types.CompleteRequest{
+	rawPayload := CompleteRequest{
 		IndexerName: c.indexerName,
 		IndexID:     indexID,
 	}
@@ -139,7 +139,7 @@ func (c *Client) Heartbeat(ctx context.Context, indexIDs []int) error {
 		return err
 	}
 
-	payload, err := marshalPayload(types.HeartbeatRequest{
+	payload, err := marshalPayload(HeartbeatRequest{
 		IndexerName: c.indexerName,
 		IndexIDs:    indexIDs,
 	})
@@ -185,6 +185,7 @@ func (c *Client) do(ctx context.Context, method string, url *url.URL, body io.Re
 	req, ht := nethttp.TraceRequest(
 		span.Tracer(),
 		req,
+		// TODO - configure
 		nethttp.OperationName("Code Intel Index Manager Client"),
 		nethttp.ClientTrace(false),
 	)
@@ -215,6 +216,7 @@ func makeIndexManagerURL(baseURL, authToken, op string) (*url.URL, error) {
 	}
 	base.User = url.UserPassword("indexer", authToken)
 
+	// TODO - configure
 	return base.ResolveReference(&url.URL{Path: path.Join(".internal-code-intel", "index-queue", op)}), nil
 }
 

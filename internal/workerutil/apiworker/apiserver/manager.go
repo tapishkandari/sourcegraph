@@ -1,4 +1,4 @@
-package indexmanager
+package apiserver
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"github.com/efritz/glock"
 	"github.com/hashicorp/go-multierror"
 	"github.com/inconshreveable/log15"
-	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/goroutine"
+	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 	dbworkerstore "github.com/sourcegraph/sourcegraph/internal/workerutil/dbworker/store"
 )
 
@@ -19,7 +19,7 @@ import (
 type Manager interface {
 	// Dequeue pulls an unprocessed index record from the database and assigns the transaction that
 	// locks that record to the given indexer.
-	Dequeue(ctx context.Context, indexerName string) (store.Index, bool, error)
+	Dequeue(ctx context.Context, indexerName string) (_ workerutil.Record, dequeued bool, _ error)
 
 	// SetLogContents updates a currently processing index record with the given log contents.
 	SetLogContents(ctx context.Context, indexerName string, indexID int, contents string) error
@@ -61,7 +61,7 @@ type ManagerWithHandler interface {
 }
 
 type manager struct {
-	store            store.Store
+	store            XStore
 	workerStore      dbworkerstore.Store
 	options          ManagerOptions
 	clock            glock.Clock
@@ -72,6 +72,11 @@ type manager struct {
 
 var _ ManagerWithHandler = &manager{}
 
+type XStore interface {
+	// With(store basestore.ShareableStore) XStore
+	SetIndexLogContents(ctx context.Context, indexID int, contents string) error
+}
+
 // indexerMeta tracks the last request time of an indexer along with the set of index records which it
 // is currently processing.
 type indexerMeta struct {
@@ -81,17 +86,17 @@ type indexerMeta struct {
 
 // indexMeta wraps an index record and the tranaction that is currently locking it for processing.
 type indexMeta struct {
-	index   store.Index
+	index   workerutil.Record
 	tx      dbworkerstore.Store
 	started time.Time
 }
 
 // New creates a new manager with the given store and options.
-func New(store store.Store, workerStore dbworkerstore.Store, options ManagerOptions) ManagerWithHandler {
+func New(store XStore, workerStore dbworkerstore.Store, options ManagerOptions) ManagerWithHandler {
 	return newManager(store, workerStore, options, glock.NewRealClock())
 }
 
-func newManager(store store.Store, workerStore dbworkerstore.Store, options ManagerOptions, clock glock.Clock) ManagerWithHandler {
+func newManager(store XStore, workerStore dbworkerstore.Store, options ManagerOptions, clock glock.Clock) ManagerWithHandler {
 	dequeueSemaphore := make(chan struct{}, options.MaximumTransactions)
 	for i := 0; i < options.MaximumTransactions; i++ {
 		dequeueSemaphore <- struct{}{}
@@ -126,7 +131,7 @@ func (m *manager) OnShutdown() {
 	for _, indexer := range m.indexers {
 		for _, meta := range indexer.metas {
 			if err := meta.tx.Done(err); err != nil && err != err {
-				log15.Error(fmt.Sprintf("Failed to close transaction holding index %d", meta.index.ID), "err", err)
+				log15.Error(fmt.Sprintf("Failed to close transaction holding index %d", meta.index.RecordID()), "err", err)
 			}
 		}
 	}
@@ -152,11 +157,11 @@ func (m *manager) pruneIndexers() (metas []indexMeta) {
 
 // Dequeue pulls an unprocessed index record from the database and assigns the transaction that
 // locks that record to the given indexer.
-func (m *manager) Dequeue(ctx context.Context, indexerName string) (_ store.Index, dequeued bool, _ error) {
+func (m *manager) Dequeue(ctx context.Context, indexerName string) (_ workerutil.Record, dequeued bool, _ error) {
 	select {
 	case <-m.dequeueSemaphore:
 	default:
-		return store.Index{}, false, nil
+		return nil, false, nil
 	}
 	defer func() {
 		if !dequeued {
@@ -169,16 +174,15 @@ func (m *manager) Dequeue(ctx context.Context, indexerName string) (_ store.Inde
 
 	record, tx, dequeued, err := m.workerStore.DequeueWithIndependentTransactionContext(ctx, nil)
 	if err != nil {
-		return store.Index{}, false, err
+		return nil, false, err
 	}
 	if !dequeued {
-		return store.Index{}, false, nil
+		return nil, false, nil
 	}
 
 	now := m.clock.Now()
-	index := record.(store.Index)
-	m.addMeta(indexerName, indexMeta{index: index, tx: tx, started: now})
-	return index, true, nil
+	m.addMeta(indexerName, indexMeta{index: record, tx: tx, started: now})
+	return record, true, nil
 }
 
 // addMeta removes the given index to the given indexer. This method also updates the last
@@ -205,12 +209,14 @@ func (m *manager) SetLogContents(ctx context.Context, indexerName string, indexI
 		return nil
 	}
 
-	// We're holding the index in a transaction, so if we want to modify that record we
-	// need to do it in the same transaction. Here, we call the SetIndexLogContents method
-	// on the codeintel store using the transaction attached to the processing index record.
-	if err := m.store.With(index.tx).SetIndexLogContents(ctx, indexID, contents); err != nil {
-		return err
-	}
+	// TODO
+	fmt.Printf("> %v\n", index)
+	// // We're holding the index in a transaction, so if we want to modify that record we
+	// // need to do it in the same transaction. Here, we call the SetIndexLogContents method
+	// // on the codeintel store using the transaction attached to the processing index record.
+	// if err := m.store.With(index.tx).SetIndexLogContents(ctx, indexID, contents); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
@@ -242,7 +248,7 @@ func (m *manager) findMeta(indexerName string, indexID int, remove bool) (indexM
 	}
 
 	for i, meta := range indexer.metas {
-		if meta.index.ID == indexID {
+		if meta.index.RecordID() == indexID {
 			if remove {
 				l := len(indexer.metas) - 1
 				indexer.metas[i] = indexer.metas[l]
@@ -262,9 +268,9 @@ func (m *manager) completeIndex(ctx context.Context, meta indexMeta, errorMessag
 	defer func() { m.dequeueSemaphore <- struct{}{} }()
 
 	if errorMessage == "" {
-		_, err = meta.tx.MarkComplete(ctx, meta.index.ID)
+		_, err = meta.tx.MarkComplete(ctx, meta.index.RecordID())
 	} else {
-		_, err = meta.tx.MarkErrored(ctx, meta.index.ID, errorMessage)
+		_, err = meta.tx.MarkErrored(ctx, meta.index.RecordID(), errorMessage)
 	}
 
 	return meta.tx.Done(err)
@@ -300,7 +306,7 @@ func (m *manager) pruneIndexes(indexerName string, ids []int) (dead []indexMeta)
 
 	var live []indexMeta
 	for _, meta := range indexer.metas {
-		if _, ok := idMap[meta.index.ID]; ok || now.Sub(meta.started) < m.options.UnreportedIndexMaxAge {
+		if _, ok := idMap[meta.index.RecordID()]; ok || now.Sub(meta.started) < m.options.UnreportedIndexMaxAge {
 			live = append(live, meta)
 		} else {
 			dead = append(dead, meta)
@@ -327,6 +333,6 @@ func (m *manager) requeueIndexes(ctx context.Context, metas []indexMeta) (errs e
 func (m *manager) requeueIndex(ctx context.Context, meta indexMeta) error {
 	defer func() { m.dequeueSemaphore <- struct{}{} }()
 
-	err := meta.tx.Requeue(ctx, meta.index.ID, m.clock.Now().Add(m.options.RequeueDelay))
+	err := meta.tx.Requeue(ctx, meta.index.RecordID(), m.clock.Now().Add(m.options.RequeueDelay))
 	return meta.tx.Done(err)
 }

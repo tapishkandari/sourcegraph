@@ -1,4 +1,4 @@
-package types
+package apiclient
 
 // DequeueRequest is sent to the index manager API to lock and retrieve a
 // queued index record for processing.

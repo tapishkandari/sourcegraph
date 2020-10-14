@@ -6,8 +6,6 @@ import (
 	"github.com/inconshreveable/log15"
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sourcegraph/sourcegraph/enterprise/cmd/precise-code-intel-indexer-vm/internal/indexer"
-	queue "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/client"
 	"github.com/sourcegraph/sourcegraph/internal/debugserver"
 	"github.com/sourcegraph/sourcegraph/internal/env"
 	"github.com/sourcegraph/sourcegraph/internal/goroutine"
@@ -17,6 +15,8 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/observation"
 	"github.com/sourcegraph/sourcegraph/internal/trace"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
+	"github.com/sourcegraph/sourcegraph/internal/workerutil/apiworker"
+	"github.com/sourcegraph/sourcegraph/internal/workerutil/apiworker/apiclient"
 )
 
 const Port = 3190
@@ -46,7 +46,7 @@ func main() {
 		frontendURLFromDocker = frontendURL
 	}
 
-	queueClient := queue.NewClient(
+	queueClient := apiclient.NewClient(
 		uuid.New().String(),
 		frontendURL,
 		internalProxyAuthToken,
@@ -74,7 +74,7 @@ func main() {
 	}
 
 	server := httpserver.New(Port, func(router *mux.Router) {})
-	indexer := indexer.NewIndexer(queueClient, indexer.Options{
+	indexer := apiworker.NewIndexer(queueClient, apiworker.Options{
 		NumHandlers:           numContainers,
 		PollInterval:          indexerPollInterval,
 		HeartbeatInterval:     indexerHeartbeatInterval,

@@ -1,13 +1,13 @@
-package indexer
+package apiworker
 
 import (
 	"context"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sourcegraph/sourcegraph/enterprise/cmd/precise-code-intel-indexer-vm/internal/indexer/command"
 	"github.com/sourcegraph/sourcegraph/internal/goroutine"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
+	"github.com/sourcegraph/sourcegraph/internal/workerutil/apiworker/command"
 )
 
 type Options struct {

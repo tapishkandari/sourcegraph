@@ -1,4 +1,4 @@
-package server
+package apiserver
 
 import (
 	"fmt"
@@ -6,8 +6,25 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/inconshreveable/log15"
-	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/types"
+	"github.com/sourcegraph/sourcegraph/internal/goroutine"
+	"github.com/sourcegraph/sourcegraph/internal/httpserver"
+	"github.com/sourcegraph/sourcegraph/internal/workerutil/apiworker/apiclient"
 )
+
+// TODO - configure
+const Port = 3189
+
+type Server struct {
+	indexManager Manager
+}
+
+func NewServer(indexManager Manager) goroutine.BackgroundRoutine {
+	server := &Server{
+		indexManager: indexManager,
+	}
+
+	return httpserver.New(Port, server.setupRoutes)
+}
 
 func (s *Server) setupRoutes(router *mux.Router) {
 	router.Path("/dequeue").Methods("POST").HandlerFunc(s.handleDequeue)
@@ -18,7 +35,7 @@ func (s *Server) setupRoutes(router *mux.Router) {
 
 // POST /dequeue
 func (s *Server) handleDequeue(w http.ResponseWriter, r *http.Request) {
-	var payload types.DequeueRequest
+	var payload apiclient.DequeueRequest
 	if !decodeBody(w, r, &payload) {
 		return
 	}
@@ -39,7 +56,7 @@ func (s *Server) handleDequeue(w http.ResponseWriter, r *http.Request) {
 
 // POST /setlog
 func (s *Server) handleSetLogContents(w http.ResponseWriter, r *http.Request) {
-	var payload types.SetLogRequest
+	var payload apiclient.SetLogRequest
 	if !decodeBody(w, r, &payload) {
 		return
 	}
@@ -55,7 +72,7 @@ func (s *Server) handleSetLogContents(w http.ResponseWriter, r *http.Request) {
 
 // POST /complete
 func (s *Server) handleComplete(w http.ResponseWriter, r *http.Request) {
-	var payload types.CompleteRequest
+	var payload apiclient.CompleteRequest
 	if !decodeBody(w, r, &payload) {
 		return
 	}
@@ -76,7 +93,7 @@ func (s *Server) handleComplete(w http.ResponseWriter, r *http.Request) {
 
 // POST /heartbeat
 func (s *Server) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
-	var payload types.HeartbeatRequest
+	var payload apiclient.HeartbeatRequest
 	if !decodeBody(w, r, &payload) {
 		return
 	}
