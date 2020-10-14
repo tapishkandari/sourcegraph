@@ -8,12 +8,12 @@ import (
 	"os"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/inconshreveable/log15"
 	"github.com/pkg/errors"
+	"github.com/sourcegraph/sourcegraph/enterprise/cmd/precise-code-intel-indexer-vm/internal/indexer/command"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 )
 
@@ -23,61 +23,18 @@ const uploadRoute = "/.internal-code-intel/lsif/upload"
 type Handler struct {
 	queueClient   queueClient
 	idSet         *IDSet
-	commander     Commander
-	options       HandlerOptions
+	commandRunner command.Runner
+	options       Options
 	uuidGenerator func() (uuid.UUID, error)
 }
 
 var _ workerutil.Handler = &Handler{}
 
-type HandlerOptions struct {
-	FrontendURL           string
-	FrontendURLFromDocker string
-	AuthToken             string
-	FirecrackerImage      string
-	UseFirecracker        bool
-	FirecrackerNumCPUs    int
-	FirecrackerMemory     string
-	FirecrackerDiskSpace  string
-	ImageArchivePath      string
-}
-
 type queueClient interface {
-	Dequeue(ctx context.Context) (index Index, _ bool, _ error)
+	Dequeue(ctx context.Context, payload interface{}) (bool, error)
 	SetLogContents(ctx context.Context, indexID int, contents string) error
 	Complete(ctx context.Context, indexID int, indexErr error) error
 	Heartbeat(ctx context.Context, indexIDs []int) error
-}
-
-type Index struct {
-	// TODO - get rid of what we don't want
-	ID             int          `json:"id"`
-	Commit         string       `json:"commit"`
-	QueuedAt       time.Time    `json:"queuedAt"`
-	State          string       `json:"state"`
-	FailureMessage *string      `json:"failureMessage"`
-	StartedAt      *time.Time   `json:"startedAt"`
-	FinishedAt     *time.Time   `json:"finishedAt"`
-	ProcessAfter   *time.Time   `json:"processAfter"`
-	NumResets      int          `json:"numResets"`
-	NumFailures    int          `json:"numFailures"`
-	RepositoryID   int          `json:"repositoryId"`
-	RepositoryName string       `json:"repositoryName"`
-	DockerSteps    []DockerStep `json:"docker_steps"`
-	Root           string       `json:"root"`
-	Indexer        string       `json:"indexer"`
-	IndexerArgs    []string     `json:"indexer_args"`
-	Outfile        string       `json:"outfile"`
-}
-
-type DockerStep struct {
-	Root     string   `json:"root"`
-	Image    string   `json:"image"`
-	Commands []string `json:"commands"`
-}
-
-func (i Index) RecordID() int {
-	return i.ID
 }
 
 // Handle clones the target code into a temporary directory, invokes the target indexer in a fresh
@@ -91,7 +48,7 @@ func (h *Handler) Handle(ctx context.Context, s workerutil.Store, record workeru
 	// interpolate into the command. No command that we run on the host leaks environment
 	// variables, and the user-specified commands (which could leak their environment) are
 	// run in a clean VM.
-	logger := NewCommandLogger(h.options.AuthToken)
+	logger := command.NewLogger(h.options.AuthToken)
 
 	defer func() {
 		type SetLogContents interface {
@@ -107,7 +64,7 @@ func (h *Handler) Handle(ctx context.Context, s workerutil.Store, record workeru
 	h.idSet.Add(index.ID)
 	defer h.idSet.Remove(index.ID)
 
-	repoDir, err := h.fetchRepository(ctx, h.commander, logger, index.RepositoryName, index.Commit)
+	repoDir, err := h.fetchRepository(ctx, h.commandRunner, logger, index.RepositoryName, index.Commit)
 	if err != nil {
 		return err
 	}
@@ -130,27 +87,27 @@ func (h *Handler) Handle(ctx context.Context, s workerutil.Store, record workeru
 		images = append(images, index.Indexer)
 	}
 
-	if err := commandFormatter.Setup(ctx, h.commander, logger, images); err != nil {
+	if err := commandFormatter.Setup(ctx, h.commandRunner, logger, images); err != nil {
 		return err
 	}
 	defer func() {
-		if teardownErr := commandFormatter.Teardown(ctx, h.commander, logger); teardownErr != nil {
+		if teardownErr := commandFormatter.Teardown(ctx, h.commandRunner, logger); teardownErr != nil {
 			err = multierror.Append(err, teardownErr)
 		}
 	}()
 
 	for _, dockerStep := range index.DockerSteps {
-		dockerStepCommand := NewCmd(dockerStep.Image, dockerStep.Commands...).SetWd(dockerStep.Root)
+		dockerStepCommand := command.NewCmd(dockerStep.Image, dockerStep.Commands...).SetWd(dockerStep.Root)
 
-		if err := h.commander.Run(ctx, logger, commandFormatter.FormatCommand(dockerStepCommand)...); err != nil {
+		if err := h.commandRunner.Run(ctx, logger, commandFormatter.FormatCommand(dockerStepCommand)...); err != nil {
 			return errors.Wrap(err, "failed to perform docker step")
 		}
 	}
 
 	if index.Indexer != "" {
-		indexCommand := NewCmd(index.Indexer, index.IndexerArgs...).SetWd(index.Root)
+		indexCommand := command.NewCmd(index.Indexer, index.IndexerArgs...).SetWd(index.Root)
 
-		if err := h.commander.Run(ctx, logger, commandFormatter.FormatCommand(indexCommand)...); err != nil {
+		if err := h.commandRunner.Run(ctx, logger, commandFormatter.FormatCommand(indexCommand)...); err != nil {
 			return errors.Wrap(err, "failed to index repository")
 		}
 	}
@@ -174,20 +131,29 @@ func (h *Handler) Handle(ctx context.Context, s workerutil.Store, record workeru
 		"-file", outfile,
 	)
 
-	uploadCommand := NewCmd(uploadImage, args...).
+	uploadCommand := command.NewCmd(uploadImage, args...).
 		SetWd(index.Root).
 		AddEnv("SRC_ENDPOINT", uploadURL.String())
 
-	if err := h.commander.Run(ctx, logger, commandFormatter.FormatCommand(uploadCommand)...); err != nil {
+	if err := h.commandRunner.Run(ctx, logger, commandFormatter.FormatCommand(uploadCommand)...); err != nil {
 		return errors.Wrap(err, "failed to upload index")
 	}
 
 	return nil
 }
 
-func (h *Handler) makeCommandFormatter(repoDir string) (CommandFormatter, error) {
+func (h *Handler) makeCommandFormatter(repoDir string) (command.Formatter, error) {
+	options := command.HandlerOptions{
+		FirecrackerImage:     h.options.FirecrackerImage,
+		UseFirecracker:       h.options.UseFirecracker,
+		FirecrackerNumCPUs:   h.options.FirecrackerNumCPUs,
+		FirecrackerMemory:    h.options.FirecrackerMemory,
+		FirecrackerDiskSpace: h.options.FirecrackerDiskSpace,
+		ImageArchivePath:     h.options.ImageArchivePath,
+	}
+
 	if !h.options.UseFirecracker {
-		return NewDockerCommandFormatter(repoDir, h.options), nil
+		return command.NewDockerFormatter(repoDir, options), nil
 	}
 
 	name, err := h.uuidGenerator()
@@ -195,7 +161,7 @@ func (h *Handler) makeCommandFormatter(repoDir string) (CommandFormatter, error)
 		return nil, err
 	}
 
-	return NewFirecrackerCommandFormatter(name.String(), repoDir, h.options), nil
+	return command.NewFirecrackerFormatter(name.String(), repoDir, options), nil
 }
 
 // makeTempDir is a wrapper around ioutil.TempDir that can be replaced during unit tests.
@@ -214,7 +180,7 @@ var makeTempDir = func() (string, error) {
 
 // fetchRepository creates a temporary directory and performs a git checkout with the given repository
 // and commit. If there is an error, the temporary directory is removed.
-func (h *Handler) fetchRepository(ctx context.Context, commander Commander, logger *CommandLogger, repositoryName, commit string) (string, error) {
+func (h *Handler) fetchRepository(ctx context.Context, commandRunner command.Runner, logger *command.Logger, repositoryName, commit string) (string, error) {
 	tempDir, err := makeTempDir()
 	if err != nil {
 		return "", err
@@ -236,7 +202,7 @@ func (h *Handler) fetchRepository(ctx context.Context, commander Commander, logg
 		{"git", "-C", tempDir, "checkout", commit},
 	}
 	for _, gitCommand := range gitCommands {
-		if err := commander.Run(ctx, logger, gitCommand...); err != nil {
+		if err := commandRunner.Run(ctx, logger, gitCommand...); err != nil {
 			return "", errors.Wrap(err, fmt.Sprintf("failed `git %s`", strings.Join(gitCommand, " ")))
 		}
 	}

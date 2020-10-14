@@ -10,7 +10,7 @@ type IDSet struct {
 	ids map[int]struct{}
 }
 
-func NewIDSet() *IDSet {
+func newIDSet() *IDSet {
 	return &IDSet{ids: map[int]struct{}{}}
 }
 

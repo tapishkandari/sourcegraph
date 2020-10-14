@@ -5,33 +5,52 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sourcegraph/sourcegraph/enterprise/cmd/precise-code-intel-indexer-vm/internal/indexer/command"
+	"github.com/sourcegraph/sourcegraph/internal/goroutine"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 )
 
-type IndexerOptions struct {
-	NumIndexers    int
-	Interval       time.Duration
-	Metrics        IndexerMetrics
-	HandlerOptions HandlerOptions
+type Options struct {
+	NumHandlers           int
+	PollInterval          time.Duration
+	HeartbeatInterval     time.Duration
+	WorkerMetrics         workerutil.WorkerMetrics
+	FrontendURL           string
+	FrontendURLFromDocker string
+	AuthToken             string
+	FirecrackerImage      string
+	UseFirecracker        bool
+	FirecrackerNumCPUs    int
+	FirecrackerMemory     string
+	FirecrackerDiskSpace  string
+	ImageArchivePath      string
 }
 
-func NewIndexer(ctx context.Context, queueClient queueClient, idSet *IDSet, options IndexerOptions) *workerutil.Worker {
+func NewIndexer(queueClient queueClient, options Options) goroutine.BackgroundRoutine {
+	idSet := newIDSet()
+	store := &storeShim{queueClient}
 	handler := &Handler{
 		queueClient:   queueClient,
 		idSet:         idSet,
-		commander:     DefaultCommander,
-		options:       options.HandlerOptions,
+		commandRunner: command.DefaultRunner,
+		options:       options,
 		uuidGenerator: uuid.NewRandom,
 	}
 
-	workerMetrics := workerutil.WorkerMetrics{
-		HandleOperation: options.Metrics.ProcessOperation,
-	}
-
-	return workerutil.NewWorker(ctx, &storeShim{queueClient}, workerutil.WorkerOptions{
+	indexer := workerutil.NewWorker(context.Background(), store, workerutil.WorkerOptions{
 		Handler:     handler,
-		NumHandlers: options.NumIndexers,
-		Interval:    options.Interval,
-		Metrics:     workerMetrics,
+		NumHandlers: options.NumHandlers,
+		Interval:    options.PollInterval,
+		Metrics:     options.WorkerMetrics,
 	})
+
+	heartbeat := goroutine.NewPeriodicGoroutine(
+		context.Background(),
+		options.HeartbeatInterval,
+		goroutine.NewHandlerWithErrorMessage("heartbeat", func(ctx context.Context) error {
+			return queueClient.Heartbeat(ctx, idSet.Slice())
+		}),
+	)
+
+	return goroutine.Combine(indexer, heartbeat)
 }

@@ -15,14 +15,14 @@ func init() {
 
 func TestHandleWithDocker(t *testing.T) {
 	queueClient := NewMockQueueClient()
-	idSet := NewIDSet()
-	commander := NewMockCommander()
+	idSet := newIDSet()
+	commandRunner := NewMockRunner()
 
 	handler := &Handler{
-		queueClient: queueClient,
-		idSet:       idSet,
-		commander:   commander,
-		options: HandlerOptions{
+		queueClient:   queueClient,
+		idSet:         idSet,
+		commandRunner: commandRunner,
+		options: Options{
 			FrontendURL:           "https://sourcegraph.test:1234",
 			FrontendURLFromDocker: "https://sourcegraph.test:5432",
 			AuthToken:             "hunter2",
@@ -58,7 +58,7 @@ func TestHandleWithDocker(t *testing.T) {
 		t.Fatalf("unexpected error handling index: %s", err)
 	}
 
-	if callCount := len(commander.RunFunc.History()); callCount != 7 {
+	if callCount := len(commandRunner.RunFunc.History()); callCount != 7 {
 		t.Errorf("unexpected run call count. want=%d have=%d", 7, callCount)
 	} else {
 		expectedCalls := []string{
@@ -75,7 +75,7 @@ func TestHandleWithDocker(t *testing.T) {
 			"docker run --rm --cpus 8 --memory 32G -v /tmp/testing:/data -w /data/r3 -e SRC_ENDPOINT=https://indexer:hunter2@sourcegraph.test:5432 sourcegraph/src-cli:latest lsif upload -no-progress -repo github.com/sourcegraph/sourcegraph -commit e2249f2173e8ca0c8c2541644847e7bf01aaef4a -upload-route /.internal-code-intel/lsif/upload -file nonstandard.lsif",
 		}
 
-		calls := commander.RunFunc.History()
+		calls := commandRunner.RunFunc.History()
 
 		for i, expectedCall := range expectedCalls {
 			if diff := cmp.Diff(expectedCall, strings.Join(calls[i].Arg2, " ")); diff != "" {
@@ -87,14 +87,14 @@ func TestHandleWithDocker(t *testing.T) {
 
 func TestHandleWithFirecracker(t *testing.T) {
 	queueClient := NewMockQueueClient()
-	idSet := NewIDSet()
-	commander := NewMockCommander()
+	idSet := newIDSet()
+	commandRunner := NewMockRunner()
 
 	handler := &Handler{
-		queueClient: queueClient,
-		idSet:       idSet,
-		commander:   commander,
-		options: HandlerOptions{
+		queueClient:   queueClient,
+		idSet:         idSet,
+		commandRunner: commandRunner,
+		options: Options{
 			FrontendURL:           "https://sourcegraph.test:1234",
 			FrontendURLFromDocker: "https://sourcegraph.test:5432",
 			AuthToken:             "hunter2",
@@ -135,7 +135,7 @@ func TestHandleWithFirecracker(t *testing.T) {
 		t.Fatalf("unexpected error handling index: %s", err)
 	}
 
-	if callCount := len(commander.RunFunc.History()); callCount != 26 {
+	if callCount := len(commandRunner.RunFunc.History()); callCount != 26 {
 		t.Errorf("unexpected run call count. want=%d have=%d", 26, callCount)
 	} else {
 		expectedCalls := []string{
@@ -175,7 +175,7 @@ func TestHandleWithFirecracker(t *testing.T) {
 			"ignite rm -f --runtime docker --network-plugin docker-bridge 97b45daf-53d1-48ad-b992-547469d8e438",
 		}
 
-		calls := commander.RunFunc.History()
+		calls := commandRunner.RunFunc.History()
 
 		for i, expectedCall := range expectedCalls {
 			if diff := cmp.Diff(expectedCall, strings.Join(calls[i].Arg2, " ")); diff != "" {

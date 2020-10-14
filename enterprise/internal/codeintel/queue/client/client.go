@@ -16,7 +16,6 @@ import (
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/queue/types"
-	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/metrics"
 	"github.com/sourcegraph/sourcegraph/internal/trace/ot"
 	"golang.org/x/net/context/ctxhttp"
@@ -60,33 +59,33 @@ func NewClient(indexerName, frontendURL, authToken string) *Client {
 // Dequeue returns a queued index record for processing. This record can be marked as completed
 // or failed by calling Complete with the same identifier. While processing, the identifier of
 // the record must appear in all heartbeat requests.
-func (c *Client) Dequeue(ctx context.Context) (index store.Index, _ bool, _ error) {
+func (c *Client) Dequeue(ctx context.Context, index interface{}) (bool, error) {
 	url, err := makeIndexManagerURL(c.frontendURL, c.authToken, "dequeue")
 	if err != nil {
-		return store.Index{}, false, err
+		return false, err
 	}
 
 	payload, err := marshalPayload(types.DequeueRequest{
 		IndexerName: c.indexerName,
 	})
 	if err != nil {
-		return store.Index{}, false, err
+		return false, err
 	}
 
 	hasContent, body, err := c.do(ctx, "POST", url, payload)
 	if err != nil {
-		return store.Index{}, false, err
+		return false, err
 	}
 	if !hasContent {
-		return store.Index{}, false, nil
+		return false, nil
 	}
 	defer body.Close()
 
 	if err := json.NewDecoder(body).Decode(&index); err != nil {
-		return store.Index{}, false, err
+		return false, err
 	}
 
-	return index, true, nil
+	return true, nil
 }
 
 // SetLogContents updates a currently processing index record with the given log contents.

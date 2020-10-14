@@ -32,7 +32,10 @@ func TestDequeue(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	index, dequeued, err := testClient(ts.URL).Dequeue(context.Background())
+	var index struct {
+		ID int `json:"id"`
+	}
+	dequeued, err := testClient(ts.URL).Dequeue(context.Background(), &index)
 	if err != nil {
 		t.Fatalf("unexpected error dequeueing record: %s", err)
 	}
@@ -50,7 +53,7 @@ func TestDequeueNoRecord(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	_, dequeued, err := testClient(ts.URL).Dequeue(context.Background())
+	dequeued, err := testClient(ts.URL).Dequeue(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error dequeueing record: %s", err)
 	}
@@ -65,7 +68,7 @@ func TestDequeueBadResponse(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	if _, _, err := testClient(ts.URL).Dequeue(context.Background()); err == nil {
+	if _, err := testClient(ts.URL).Dequeue(context.Background(), nil); err == nil {
 		t.Fatalf("unexpected nil error dequeueing record")
 	}
 }

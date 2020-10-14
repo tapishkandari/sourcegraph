@@ -2,8 +2,8 @@ package indexer
 
 import (
 	"context"
+	"errors"
 
-	"github.com/pkg/errors"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 )
 
@@ -16,7 +16,8 @@ var _ workerutil.Store = &storeShim{}
 
 // Dequeue calls into the inner client.
 func (s *storeShim) Dequeue(ctx context.Context, extraArguments interface{}) (workerutil.Record, workerutil.Store, bool, error) {
-	index, dequeued, err := s.queueClient.Dequeue(ctx)
+	var index Index // TODO - make generic
+	dequeued, err := s.queueClient.Dequeue(ctx, &index)
 	return index, s, dequeued, err
 }
 

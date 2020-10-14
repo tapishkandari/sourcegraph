@@ -36,8 +36,8 @@ func NewMockQueueClient() *MockQueueClient {
 			},
 		},
 		DequeueFunc: &QueueClientDequeueFunc{
-			defaultHook: func(context.Context) (Index, bool, error) {
-				return Index{}, false, nil
+			defaultHook: func(context.Context, interface{}) (bool, error) {
+				return false, nil
 			},
 		},
 		HeartbeatFunc: &QueueClientHeartbeatFunc{
@@ -59,7 +59,7 @@ func NewMockQueueClient() *MockQueueClient {
 // It is redefined here as it is unexported in the source packge.
 type surrogateMockQueueClient interface {
 	Complete(context.Context, int, error) error
-	Dequeue(context.Context) (Index, bool, error)
+	Dequeue(context.Context, interface{}) (bool, error)
 	Heartbeat(context.Context, []int) error
 	SetLogContents(context.Context, int, string) error
 }
@@ -196,24 +196,24 @@ func (c QueueClientCompleteFuncCall) Results() []interface{} {
 // QueueClientDequeueFunc describes the behavior when the Dequeue method of
 // the parent MockQueueClient instance is invoked.
 type QueueClientDequeueFunc struct {
-	defaultHook func(context.Context) (Index, bool, error)
-	hooks       []func(context.Context) (Index, bool, error)
+	defaultHook func(context.Context, interface{}) (bool, error)
+	hooks       []func(context.Context, interface{}) (bool, error)
 	history     []QueueClientDequeueFuncCall
 	mutex       sync.Mutex
 }
 
 // Dequeue delegates to the next hook function in the queue and stores the
 // parameter and result values of this invocation.
-func (m *MockQueueClient) Dequeue(v0 context.Context) (Index, bool, error) {
-	r0, r1, r2 := m.DequeueFunc.nextHook()(v0)
-	m.DequeueFunc.appendCall(QueueClientDequeueFuncCall{v0, r0, r1, r2})
-	return r0, r1, r2
+func (m *MockQueueClient) Dequeue(v0 context.Context, v1 interface{}) (bool, error) {
+	r0, r1 := m.DequeueFunc.nextHook()(v0, v1)
+	m.DequeueFunc.appendCall(QueueClientDequeueFuncCall{v0, v1, r0, r1})
+	return r0, r1
 }
 
 // SetDefaultHook sets function that is called when the Dequeue method of
 // the parent MockQueueClient instance is invoked and the hook queue is
 // empty.
-func (f *QueueClientDequeueFunc) SetDefaultHook(hook func(context.Context) (Index, bool, error)) {
+func (f *QueueClientDequeueFunc) SetDefaultHook(hook func(context.Context, interface{}) (bool, error)) {
 	f.defaultHook = hook
 }
 
@@ -221,7 +221,7 @@ func (f *QueueClientDequeueFunc) SetDefaultHook(hook func(context.Context) (Inde
 // Dequeue method of the parent MockQueueClient instance inovkes the hook at
 // the front of the queue and discards it. After the queue is empty, the
 // default hook function is invoked for any future action.
-func (f *QueueClientDequeueFunc) PushHook(hook func(context.Context) (Index, bool, error)) {
+func (f *QueueClientDequeueFunc) PushHook(hook func(context.Context, interface{}) (bool, error)) {
 	f.mutex.Lock()
 	f.hooks = append(f.hooks, hook)
 	f.mutex.Unlock()
@@ -229,21 +229,21 @@ func (f *QueueClientDequeueFunc) PushHook(hook func(context.Context) (Index, boo
 
 // SetDefaultReturn calls SetDefaultDefaultHook with a function that returns
 // the given values.
-func (f *QueueClientDequeueFunc) SetDefaultReturn(r0 Index, r1 bool, r2 error) {
-	f.SetDefaultHook(func(context.Context) (Index, bool, error) {
-		return r0, r1, r2
+func (f *QueueClientDequeueFunc) SetDefaultReturn(r0 bool, r1 error) {
+	f.SetDefaultHook(func(context.Context, interface{}) (bool, error) {
+		return r0, r1
 	})
 }
 
 // PushReturn calls PushDefaultHook with a function that returns the given
 // values.
-func (f *QueueClientDequeueFunc) PushReturn(r0 Index, r1 bool, r2 error) {
-	f.PushHook(func(context.Context) (Index, bool, error) {
-		return r0, r1, r2
+func (f *QueueClientDequeueFunc) PushReturn(r0 bool, r1 error) {
+	f.PushHook(func(context.Context, interface{}) (bool, error) {
+		return r0, r1
 	})
 }
 
-func (f *QueueClientDequeueFunc) nextHook() func(context.Context) (Index, bool, error) {
+func (f *QueueClientDequeueFunc) nextHook() func(context.Context, interface{}) (bool, error) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -279,27 +279,27 @@ type QueueClientDequeueFuncCall struct {
 	// Arg0 is the value of the 1st argument passed to this method
 	// invocation.
 	Arg0 context.Context
+	// Arg1 is the value of the 2nd argument passed to this method
+	// invocation.
+	Arg1 interface{}
 	// Result0 is the value of the 1st result returned from this method
 	// invocation.
-	Result0 Index
+	Result0 bool
 	// Result1 is the value of the 2nd result returned from this method
 	// invocation.
-	Result1 bool
-	// Result2 is the value of the 3rd result returned from this method
-	// invocation.
-	Result2 error
+	Result1 error
 }
 
 // Args returns an interface slice containing the arguments of this
 // invocation.
 func (c QueueClientDequeueFuncCall) Args() []interface{} {
-	return []interface{}{c.Arg0}
+	return []interface{}{c.Arg0, c.Arg1}
 }
 
 // Results returns an interface slice containing the results of this
 // invocation.
 func (c QueueClientDequeueFuncCall) Results() []interface{} {
-	return []interface{}{c.Result0, c.Result1, c.Result2}
+	return []interface{}{c.Result0, c.Result1}
 }
 
 // QueueClientHeartbeatFunc describes the behavior when the Heartbeat method

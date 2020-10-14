@@ -23,11 +23,7 @@ var _ Formatter = &firecrackerFormatter{}
 
 const FirecrackerRepoDir = "/repo-dir"
 
-func NewFirecrackerCommandFormatter(
-	name string,
-	repoDir string,
-	options HandlerOptions,
-) Formatter {
+func NewFirecrackerFormatter(name string, repoDir string, options HandlerOptions) Formatter {
 	return &firecrackerFormatter{
 		name:      name,
 		repoDir:   repoDir,

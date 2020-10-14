@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/inconshreveable/log15"
@@ -15,8 +13,10 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/goroutine"
 	"github.com/sourcegraph/sourcegraph/internal/httpserver"
 	"github.com/sourcegraph/sourcegraph/internal/logging"
+	"github.com/sourcegraph/sourcegraph/internal/metrics"
 	"github.com/sourcegraph/sourcegraph/internal/observation"
 	"github.com/sourcegraph/sourcegraph/internal/trace"
+	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 )
 
 const Port = 3190
@@ -46,41 +46,51 @@ func main() {
 		frontendURLFromDocker = frontendURL
 	}
 
+	queueClient := queue.NewClient(
+		uuid.New().String(),
+		frontendURL,
+		internalProxyAuthToken,
+	)
+
 	observationContext := &observation.Context{
 		Logger:     log15.Root(),
 		Tracer:     &trace.Tracer{Tracer: opentracing.GlobalTracer()},
 		Registerer: prometheus.DefaultRegisterer,
 	}
 
-	indexerName := uuid.New().String()
-
-	queueClient := queue.NewClient(
-		indexerName,
-		frontendURL,
-		internalProxyAuthToken,
+	metrics := metrics.NewOperationMetrics(
+		observationContext.Registerer,
+		"index_queue_processor",
+		metrics.WithLabels("op"),
+		metrics.WithCountHelp("Total number of records processed"),
 	)
-	idSet := indexer.NewIDSet()
+
+	workerMetrics := workerutil.WorkerMetrics{
+		HandleOperation: observationContext.Operation(observation.Op{
+			Name:         "Processor.Process",
+			MetricLabels: []string{"process"},
+			Metrics:      metrics,
+		}),
+	}
 
 	server := httpserver.New(Port, func(router *mux.Router) {})
-	heartbeater := indexer.NewHeartbeat(context.Background(), queueClient, idSet, indexerHeartbeatInterval)
-	indexerMetrics := indexer.NewIndexerMetrics(observationContext)
-	indexer := indexer.NewIndexer(context.Background(), queueClient, idSet, indexer.IndexerOptions{
-		NumIndexers: numContainers,
-		Interval:    indexerPollInterval,
-		Metrics:     indexerMetrics,
-		HandlerOptions: indexer.HandlerOptions{
-			FrontendURL:           frontendURL,
-			FrontendURLFromDocker: frontendURLFromDocker,
-			AuthToken:             internalProxyAuthToken,
-			FirecrackerImage:      firecrackerImage,
-			UseFirecracker:        useFirecracker,
-			FirecrackerNumCPUs:    firecrackerNumCPUs,
-			FirecrackerMemory:     firecrackerMemory,
-			FirecrackerDiskSpace:  firecrackerDiskSpace,
-			ImageArchivePath:      imageArchivePath,
-		},
-	})
+	indexer := indexer.NewIndexer(queueClient, indexer.Options{
+		NumHandlers:           numContainers,
+		PollInterval:          indexerPollInterval,
+		HeartbeatInterval:     indexerHeartbeatInterval,
+		WorkerMetrics:         workerMetrics,
+		FrontendURL:           frontendURL,
+		FrontendURLFromDocker: frontendURLFromDocker,
+		AuthToken:             internalProxyAuthToken,
+		FirecrackerImage:      firecrackerImage,
+		UseFirecracker:        useFirecracker,
+		FirecrackerNumCPUs:    firecrackerNumCPUs,
+		FirecrackerMemory:     firecrackerMemory,
+		FirecrackerDiskSpace:  firecrackerDiskSpace,
+		ImageArchivePath:      imageArchivePath,
+	},
+	)
 
 	go debugserver.Start()
-	goroutine.MonitorBackgroundRoutines(server, indexer, heartbeater)
+	goroutine.MonitorBackgroundRoutines(server, indexer)
 }
