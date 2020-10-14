@@ -21,7 +21,6 @@ const uploadImage = "sourcegraph/src-cli:latest"
 const uploadRoute = "/.internal-code-intel/lsif/upload"
 
 type Handler struct {
-	queueClient   queueClient
 	idSet         *IDSet
 	commandRunner command.Runner
 	options       Options
@@ -29,13 +28,6 @@ type Handler struct {
 }
 
 var _ workerutil.Handler = &Handler{}
-
-type queueClient interface {
-	Dequeue(ctx context.Context, payload interface{}) (bool, error)
-	SetLogContents(ctx context.Context, indexID int, contents string) error
-	Complete(ctx context.Context, indexID int, indexErr error) error
-	Heartbeat(ctx context.Context, indexIDs []int) error
-}
 
 // Handle clones the target code into a temporary directory, invokes the target indexer in a fresh
 // docker container, and uploads the results to the external frontend API.

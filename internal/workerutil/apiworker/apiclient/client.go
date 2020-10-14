@@ -11,48 +11,35 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/sourcegraph/sourcegraph/internal/metrics"
 	"github.com/sourcegraph/sourcegraph/internal/trace/ot"
 	"golang.org/x/net/context/ctxhttp"
 )
 
 // Client is the interface to the precise-code-intel-index-manager.
 type Client struct {
-	indexerName string
-	frontendURL string
-	authToken   string
-	httpClient  *http.Client
-	userAgent   string
+	options    Options
+	userAgent  string
+	httpClient *http.Client
 }
 
-// TODO - configure
-var requestMeter = metrics.NewRequestMeter("precise_code_intel_index_manager", "Total number of requests sent to precise-code-intel-index-manager.")
-
-// defaultTransport is the default transport for precise code intel index manager clients.
-// ot.Transport will propagate opentracing spans.
-var defaultTransport = &ot.Transport{
-	RoundTripper: requestMeter.Transport(&http.Transport{}, func(u *url.URL) string {
-		// Extract the operation from a path like `/.internal-code-intel/index-queue/{operation}`
-		if segments := strings.Split(u.Path, "/"); len(segments) == 4 {
-			return segments[3]
-		}
-
-		return ""
-	}),
+type Options struct {
+	IndexerName       string
+	FrontendURL       string
+	FrontendAuthToken string
+	Prefix            string
+	Transport         http.RoundTripper
+	OperationName     string
 }
 
 // NewClient creates a new Client with the given unique name targetting hte given external frontend API.
-func NewClient(indexerName, frontendURL, authToken string) *Client {
+func New(options Options) *Client {
 	return &Client{
-		indexerName: indexerName,
-		httpClient:  &http.Client{Transport: defaultTransport},
-		frontendURL: frontendURL,
-		authToken:   authToken,
-		userAgent:   filepath.Base(os.Args[0]),
+		options:    options,
+		userAgent:  filepath.Base(os.Args[0]),
+		httpClient: &http.Client{Transport: options.Transport},
 	}
 }
 
@@ -60,13 +47,13 @@ func NewClient(indexerName, frontendURL, authToken string) *Client {
 // or failed by calling Complete with the same identifier. While processing, the identifier of
 // the record must appear in all heartbeat requests.
 func (c *Client) Dequeue(ctx context.Context, index interface{}) (bool, error) {
-	url, err := makeIndexManagerURL(c.frontendURL, c.authToken, "dequeue")
+	url, err := makeIndexManagerURL(c.options.FrontendURL, c.options.FrontendAuthToken, c.options.Prefix, "dequeue")
 	if err != nil {
 		return false, err
 	}
 
 	payload, err := marshalPayload(DequeueRequest{
-		IndexerName: c.indexerName,
+		IndexerName: c.options.IndexerName,
 	})
 	if err != nil {
 		return false, err
@@ -90,13 +77,13 @@ func (c *Client) Dequeue(ctx context.Context, index interface{}) (bool, error) {
 
 // SetLogContents updates a currently processing index record with the given log contents.
 func (c *Client) SetLogContents(ctx context.Context, indexID int, contents string) error {
-	url, err := makeIndexManagerURL(c.frontendURL, c.authToken, "setlog")
+	url, err := makeIndexManagerURL(c.options.FrontendURL, c.options.FrontendAuthToken, c.options.Prefix, "setlog")
 	if err != nil {
 		return err
 	}
 
 	payload, err := marshalPayload(SetLogRequest{
-		IndexerName: c.indexerName,
+		IndexerName: c.options.IndexerName,
 		IndexID:     indexID,
 		Contents:    contents,
 	})
@@ -110,13 +97,13 @@ func (c *Client) SetLogContents(ctx context.Context, indexID int, contents strin
 // Complete marks the target index record as complete or errored depending on the existence of an
 // error message.
 func (c *Client) Complete(ctx context.Context, indexID int, indexErr error) error {
-	url, err := makeIndexManagerURL(c.frontendURL, c.authToken, "complete")
+	url, err := makeIndexManagerURL(c.options.FrontendURL, c.options.FrontendAuthToken, c.options.Prefix, "complete")
 	if err != nil {
 		return err
 	}
 
 	rawPayload := CompleteRequest{
-		IndexerName: c.indexerName,
+		IndexerName: c.options.IndexerName,
 		IndexID:     indexID,
 	}
 	if indexErr != nil {
@@ -134,13 +121,13 @@ func (c *Client) Complete(ctx context.Context, indexID int, indexErr error) erro
 // Heartbeat hints to the index manager that the indexer system is has not been lost and should not
 // release any of the index records assigned to the indexer.
 func (c *Client) Heartbeat(ctx context.Context, indexIDs []int) error {
-	url, err := makeIndexManagerURL(c.frontendURL, c.authToken, "heartbeat")
+	url, err := makeIndexManagerURL(c.options.FrontendURL, c.options.FrontendAuthToken, c.options.Prefix, "heartbeat")
 	if err != nil {
 		return err
 	}
 
 	payload, err := marshalPayload(HeartbeatRequest{
-		IndexerName: c.indexerName,
+		IndexerName: c.options.IndexerName,
 		IndexIDs:    indexIDs,
 	})
 	if err != nil {
@@ -185,8 +172,7 @@ func (c *Client) do(ctx context.Context, method string, url *url.URL, body io.Re
 	req, ht := nethttp.TraceRequest(
 		span.Tracer(),
 		req,
-		// TODO - configure
-		nethttp.OperationName("Code Intel Index Manager Client"),
+		nethttp.OperationName(c.options.OperationName),
 		nethttp.ClientTrace(false),
 	)
 	defer ht.Finish()
@@ -209,15 +195,14 @@ func (c *Client) do(ctx context.Context, method string, url *url.URL, body io.Re
 	return true, resp.Body, nil
 }
 
-func makeIndexManagerURL(baseURL, authToken, op string) (*url.URL, error) {
+func makeIndexManagerURL(baseURL, authToken, prefix, op string) (*url.URL, error) {
 	base, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 	base.User = url.UserPassword("indexer", authToken)
 
-	// TODO - configure
-	return base.ResolveReference(&url.URL{Path: path.Join(".internal-code-intel", "index-queue", op)}), nil
+	return base.ResolveReference(&url.URL{Path: path.Join(prefix, op)}), nil
 }
 
 func marshalPayload(payload interface{}) (io.Reader, error) {

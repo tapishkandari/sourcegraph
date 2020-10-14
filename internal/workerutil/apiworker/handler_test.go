@@ -14,12 +14,10 @@ func init() {
 }
 
 func TestHandleWithDocker(t *testing.T) {
-	queueClient := NewMockQueueClient()
 	idSet := newIDSet()
 	commandRunner := NewMockRunner()
 
 	handler := &Handler{
-		queueClient:   queueClient,
 		idSet:         idSet,
 		commandRunner: commandRunner,
 		options: Options{
@@ -86,12 +84,10 @@ func TestHandleWithDocker(t *testing.T) {
 }
 
 func TestHandleWithFirecracker(t *testing.T) {
-	queueClient := NewMockQueueClient()
 	idSet := newIDSet()
 	commandRunner := NewMockRunner()
 
 	handler := &Handler{
-		queueClient:   queueClient,
 		idSet:         idSet,
 		commandRunner: commandRunner,
 		options: Options{

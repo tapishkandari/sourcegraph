@@ -1,6 +1,10 @@
 package main
 
 import (
+	"net/http"
+	"net/url"
+	"strings"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/inconshreveable/log15"
@@ -14,6 +18,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/metrics"
 	"github.com/sourcegraph/sourcegraph/internal/observation"
 	"github.com/sourcegraph/sourcegraph/internal/trace"
+	"github.com/sourcegraph/sourcegraph/internal/trace/ot"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil/apiworker"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil/apiworker/apiclient"
@@ -46,11 +51,24 @@ func main() {
 		frontendURLFromDocker = frontendURL
 	}
 
-	queueClient := apiclient.NewClient(
-		uuid.New().String(),
-		frontendURL,
-		internalProxyAuthToken,
-	)
+	prefix := "/.internal-code-intel/index-queue"
+	requestMeter := metrics.NewRequestMeter("precise_code_intel_index_manager", "Total number of requests sent.")
+
+	// ot.Transport will propagate opentracing spans.
+	defaultTransport := &ot.Transport{
+		RoundTripper: requestMeter.Transport(&http.Transport{}, func(u *url.URL) string {
+			return strings.TrimPrefix(u.Path, prefix)
+		}),
+	}
+
+	queueClient := apiclient.New(apiclient.Options{
+		IndexerName:       uuid.New().String(),
+		FrontendURL:       frontendURL,
+		FrontendAuthToken: internalProxyAuthToken,
+		Prefix:            prefix,
+		Transport:         defaultTransport,
+		OperationName:     "Code Intel Index Manager Client",
+	})
 
 	observationContext := &observation.Context{
 		Logger:     log15.Root(),

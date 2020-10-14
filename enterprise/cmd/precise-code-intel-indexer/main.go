@@ -15,6 +15,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/gitserver"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/conf"
+	"github.com/sourcegraph/sourcegraph/internal/db/basestore"
 	"github.com/sourcegraph/sourcegraph/internal/debugserver"
 	"github.com/sourcegraph/sourcegraph/internal/env"
 	"github.com/sourcegraph/sourcegraph/internal/goroutine"
@@ -24,6 +25,8 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/tracer"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil/apiworker/apiserver"
 )
+
+const Port = 3189
 
 func main() {
 	env.Lock()
@@ -60,13 +63,16 @@ func main() {
 	resetterMetrics := resetter.NewResetterMetrics(prometheus.DefaultRegisterer)
 	indexabilityUpdaterMetrics := indexabilityupdater.NewUpdaterMetrics(prometheus.DefaultRegisterer)
 	schedulerMetrics := scheduler.NewSchedulerMetrics(prometheus.DefaultRegisterer)
-	indexManager := apiserver.New(s, store.WorkerutilIndexStore(s), apiserver.ManagerOptions{
+
+	// TODO - rename
+	server := apiserver.NewServer(&storeWrapper{s}, store.WorkerutilIndexStore(s), apiserver.Options{
+		Port:                  Port,
 		MaximumTransactions:   maximumTransactions,
 		RequeueDelay:          requeueDelay,
 		UnreportedIndexMaxAge: cleanupInterval * time.Duration(maximumMissedHeartbeats),
 		DeathThreshold:        cleanupInterval * time.Duration(maximumMissedHeartbeats),
+		CleanupInterval:       cleanupInterval,
 	})
-	server := apiserver.NewServer(indexManager)
 	indexResetter := resetter.NewIndexResetter(s, resetInterval, resetterMetrics)
 
 	indexabilityUpdater := indexabilityupdater.NewUpdater(
@@ -93,10 +99,8 @@ func main() {
 
 	janitorMetrics := janitor.NewJanitorMetrics(prometheus.DefaultRegisterer)
 	janitor := janitor.New(s, janitorInterval, janitorMetrics)
-	managerRoutine := goroutine.NewPeriodicGoroutine(context.Background(), cleanupInterval, indexManager)
 
 	routines := []goroutine.BackgroundRoutine{
-		managerRoutine,
 		server,
 		indexResetter,
 		indexabilityUpdater,
@@ -127,4 +131,12 @@ func mustInitializeStore() store.Store {
 	}
 
 	return store
+}
+
+type storeWrapper struct {
+	store store.Store
+}
+
+func (sw *storeWrapper) SetIndexLogContents(ctx context.Context, tx basestore.ShareableStore, indexID int, contents string) error {
+	return sw.store.With(tx).SetIndexLogContents(ctx, indexID, contents)
 }

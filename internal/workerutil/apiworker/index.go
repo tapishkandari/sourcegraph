@@ -2,6 +2,10 @@ package apiworker
 
 import "time"
 
+//
+// TODO - all of this has to go, obviously
+//
+
 type Index struct {
 	// TODO - get rid of what we don't want
 	ID             int          `json:"id"`

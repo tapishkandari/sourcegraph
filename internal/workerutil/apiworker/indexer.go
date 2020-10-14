@@ -2,6 +2,7 @@ package apiworker
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,11 +27,17 @@ type Options struct {
 	ImageArchivePath      string
 }
 
-func NewIndexer(queueClient queueClient, options Options) goroutine.BackgroundRoutine {
+type QueueStore interface {
+	Dequeue(ctx context.Context, payload interface{}) (bool, error)
+	SetLogContents(ctx context.Context, indexID int, contents string) error
+	Complete(ctx context.Context, indexID int, indexErr error) error
+	Heartbeat(ctx context.Context, indexIDs []int) error
+}
+
+func NewIndexer(queueStore QueueStore, options Options) goroutine.BackgroundRoutine {
 	idSet := newIDSet()
-	store := &storeShim{queueClient}
+	store := &storeShim{queueStore}
 	handler := &Handler{
-		queueClient:   queueClient,
 		idSet:         idSet,
 		commandRunner: command.DefaultRunner,
 		options:       options,
@@ -48,9 +55,43 @@ func NewIndexer(queueClient queueClient, options Options) goroutine.BackgroundRo
 		context.Background(),
 		options.HeartbeatInterval,
 		goroutine.NewHandlerWithErrorMessage("heartbeat", func(ctx context.Context) error {
-			return queueClient.Heartbeat(ctx, idSet.Slice())
+			return queueStore.Heartbeat(ctx, idSet.Slice())
 		}),
 	)
 
 	return goroutine.Combine(indexer, heartbeat)
+}
+
+// storeShim converts a queue client into a workerutil.Store.
+type storeShim struct {
+	queueStore QueueStore
+}
+
+var _ workerutil.Store = &storeShim{}
+
+// Dequeue calls into the inner client.
+func (s *storeShim) Dequeue(ctx context.Context, extraArguments interface{}) (workerutil.Record, workerutil.Store, bool, error) {
+	var index Index // TODO - make generic
+	dequeued, err := s.queueStore.Dequeue(ctx, &index)
+	return index, s, dequeued, err
+}
+
+// SetLogContents calls into the inner client.
+func (s *storeShim) SetLogContents(ctx context.Context, id int, payload string) error {
+	return s.queueStore.SetLogContents(ctx, id, payload)
+}
+
+// Dequeue MarkComplete into the inner client.
+func (s *storeShim) MarkComplete(ctx context.Context, id int) (bool, error) {
+	return true, s.queueStore.Complete(ctx, id, nil)
+}
+
+// MarkErrored calls into the inner client.
+func (s *storeShim) MarkErrored(ctx context.Context, id int, failureMessage string) (bool, error) {
+	return true, s.queueStore.Complete(ctx, id, errors.New(failureMessage))
+}
+
+// Done is a no-op.
+func (s *storeShim) Done(err error) error {
+	return err
 }

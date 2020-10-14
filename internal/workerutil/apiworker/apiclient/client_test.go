@@ -202,11 +202,12 @@ func TestHeartbeatBadResponse(t *testing.T) {
 }
 
 func testClient(frontendURL string) *Client {
-	return &Client{
-		frontendURL: frontendURL,
-		indexerName: "deadbeef",
-		authToken:   "hunter2",
-	}
+	return New(Options{
+		FrontendURL:       frontendURL,
+		IndexerName:       "deadbeef",
+		FrontendAuthToken: "hunter2",
+		Prefix:            ".internal-code-intel/index-queue",
+	})
 }
 
 func comparePayload(t *testing.T, raw io.Reader, expected []byte) {
