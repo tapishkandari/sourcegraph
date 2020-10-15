@@ -1,4 +1,4 @@
-FROM golang:1.14-alpine@sha256:62cd35bbeb9aadff6764dd8809c788267d72b12066bb40c080431510bbe81e36 AS builder
+FROM golang:1.15-alpine@sha256:ebac6beacbc2dbae3f454e08745d1d7059e1f061b7c1dca15a4e167224993d99 AS builder
 
 WORKDIR /go/src/tracking-issue
 COPY . .
