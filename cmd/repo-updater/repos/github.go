@@ -224,6 +224,10 @@ func (s GithubSource) LoadChangesets(ctx context.Context, cs ...*Changeset) erro
 
 	err := s.client.LoadPullRequests(ctx, prs...)
 	if err != nil {
+		if _, ok := err.(github.ErrPullRequestsNotFound); ok {
+			// TODO: Find correct subset of failed changesets.
+			return ChangesetsNotFoundError{Changesets: cs}
+		}
 		return err
 	}
 

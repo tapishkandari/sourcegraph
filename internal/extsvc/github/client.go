@@ -545,3 +545,12 @@ var ErrIncompleteResults = errors.New("github repository search returned incompl
 
 // ErrPullRequestAlreadyExists is when the requested GitHub Pull Request already exists.
 var ErrPullRequestAlreadyExists = errors.New("GitHub pull request already exists")
+
+// ErrPullRequestsNotFound is when the requested GitHub Pull Request doesn't exist.
+type ErrPullRequestsNotFound struct {
+	Numbers []int
+}
+
+func (e ErrPullRequestsNotFound) Error() string {
+	return fmt.Sprintf("GitHub pull requests not found: %v", e.Numbers)
+}

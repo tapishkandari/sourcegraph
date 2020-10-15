@@ -250,7 +250,7 @@ func TestClient_LoadPullRequests(t *testing.T) {
 		{
 			name: "non-existing-pr",
 			prs:  []*PullRequest{{RepoWithOwner: "sourcegraph/sourcegraph", Number: 0}},
-			err:  "error in GraphQL response: Could not resolve to a PullRequest with the number of 0.",
+			err:  "GitHub pull requests not found: 0",
 		},
 		{
 			name: "success",
@@ -261,6 +261,14 @@ func TestClient_LoadPullRequests(t *testing.T) {
 				{RepoWithOwner: "tsenart/vegeta", Number: 50},
 				{RepoWithOwner: "sourcegraph/sourcegraph", Number: 7352},
 			},
+		},
+		{
+			name: "multiple-non-existing-pr",
+			prs: []*PullRequest{
+				{RepoWithOwner: "sourcegraph/sourcegraph", Number: 0},
+				{RepoWithOwner: "sourcegraph/sourcegraph", Number: 100000},
+			},
+			err: "GitHub pull requests not found: 0, 100000",
 		},
 	} {
 		tc := tc

@@ -679,6 +679,7 @@ func (c *Client) ReopenPullRequest(ctx context.Context, pr *PullRequest) error {
 // LoadPullRequests loads a list of PullRequests from Github.
 func (c *Client) LoadPullRequests(ctx context.Context, prs ...*PullRequest) error {
 	const batchSize = 15
+	var notFound ErrPullRequestsNotFound
 	// We load prs in batches to avoid hitting Github's GraphQL node limit
 	for i := 0; i < len(prs); i += batchSize {
 		j := i + batchSize
@@ -686,8 +687,25 @@ func (c *Client) LoadPullRequests(ctx context.Context, prs ...*PullRequest) erro
 			j = len(prs)
 		}
 		if err := c.loadPullRequests(ctx, prs[i:j]...); err != nil {
+			if e, ok := err.(ErrPullRequestsNotFound); ok {
+				notFound.Numbers = append(notFound.Numbers, e.Numbers...)
+				continue
+			}
 			return err
+
+			// if gqlErrs, ok := err.(graphqlErrors); ok {
+			// 	for _, err2 := range gqlErrs {
+			// 		if err2.Type == graphqlErrTypeNotFound && len(err2.Path) > 1 {
+			// 			fmt.Printf("ERROR IS HERE %+v\n", err2)
+
+			// 			notFound = append(notFound, asd)
+			// 		}
+			// 	}
+			// }
 		}
+	}
+	if len(notFound.Numbers) > 0 {
+		return notFound
 	}
 	return nil
 }
