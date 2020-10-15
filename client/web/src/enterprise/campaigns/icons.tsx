@@ -12,7 +12,7 @@ const BaseCampaignsIcon: React.FunctionComponent<{ className?: string; viewBox: 
                 height="24"
                 className={className}
                 viewBox={viewBox}
-                fill="#1C7CD6"
+                fill="currentColor"
                 xmlns="http://www.w3.org/2000/svg"
             >
                 <path

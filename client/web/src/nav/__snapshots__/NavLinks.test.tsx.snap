@@ -60,7 +60,7 @@ exports[`NavLinks authed Sourcegraph.com /foo 1`] = `
     >
       <svg
         class="icon-inline d-lg-none"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -98,7 +98,7 @@ exports[`NavLinks authed Sourcegraph.com /foo 1`] = `
       </svg>
       <svg
         class="icon-inline d-none d-lg-inline-block"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -505,7 +505,7 @@ exports[`NavLinks authed Sourcegraph.com /search 1`] = `
     >
       <svg
         class="icon-inline d-lg-none"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -543,7 +543,7 @@ exports[`NavLinks authed Sourcegraph.com /search 1`] = `
       </svg>
       <svg
         class="icon-inline d-none d-lg-inline-block"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -960,7 +960,7 @@ exports[`NavLinks authed self-hosted /foo 1`] = `
     >
       <svg
         class="icon-inline d-lg-none"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -998,7 +998,7 @@ exports[`NavLinks authed self-hosted /foo 1`] = `
       </svg>
       <svg
         class="icon-inline d-none d-lg-inline-block"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -1386,7 +1386,7 @@ exports[`NavLinks authed self-hosted /search 1`] = `
     >
       <svg
         class="icon-inline d-lg-none"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -1424,7 +1424,7 @@ exports[`NavLinks authed self-hosted /search 1`] = `
       </svg>
       <svg
         class="icon-inline d-none d-lg-inline-block"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -1822,7 +1822,7 @@ exports[`NavLinks unauthed Sourcegraph.com /foo 1`] = `
     >
       <svg
         class="icon-inline d-lg-none"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -1860,7 +1860,7 @@ exports[`NavLinks unauthed Sourcegraph.com /foo 1`] = `
       </svg>
       <svg
         class="icon-inline d-none d-lg-inline-block"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -2022,7 +2022,7 @@ exports[`NavLinks unauthed Sourcegraph.com /search 1`] = `
     >
       <svg
         class="icon-inline d-lg-none"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -2060,7 +2060,7 @@ exports[`NavLinks unauthed Sourcegraph.com /search 1`] = `
       </svg>
       <svg
         class="icon-inline d-none d-lg-inline-block"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -2232,7 +2232,7 @@ exports[`NavLinks unauthed self-hosted /foo 1`] = `
     >
       <svg
         class="icon-inline d-lg-none"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -2270,7 +2270,7 @@ exports[`NavLinks unauthed self-hosted /foo 1`] = `
       </svg>
       <svg
         class="icon-inline d-none d-lg-inline-block"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -2420,7 +2420,7 @@ exports[`NavLinks unauthed self-hosted /search 1`] = `
     >
       <svg
         class="icon-inline d-lg-none"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
@@ -2458,7 +2458,7 @@ exports[`NavLinks unauthed self-hosted /search 1`] = `
       </svg>
       <svg
         class="icon-inline d-none d-lg-inline-block"
-        fill="#1C7CD6"
+        fill="currentColor"
         height="24"
         viewBox="-5.323 0 490.49 490.49"
         width="24"
