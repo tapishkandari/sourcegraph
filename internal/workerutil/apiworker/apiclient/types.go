@@ -43,3 +43,21 @@ type HeartbeatRequest struct {
 	// by the indexer.
 	IndexIDs []int `json:"indexIds"`
 }
+
+type Index struct {
+	ID             int          `json:"id"`
+	Commit         string       `json:"commit"`
+	RepositoryName string       `json:"repositoryName"`
+	DockerSteps    []DockerStep `json:"docker_steps"`
+}
+
+type DockerStep struct {
+	Root     string   `json:"root"`
+	Image    string   `json:"image"`
+	Commands []string `json:"commands"`
+	Env      []string `json:"env"` // TODO - put in db, populate
+}
+
+func (i Index) RecordID() int {
+	return i.ID
+}

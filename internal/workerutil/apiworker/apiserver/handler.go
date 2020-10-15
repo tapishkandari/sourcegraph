@@ -9,6 +9,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/db/basestore"
 	"github.com/sourcegraph/sourcegraph/internal/goroutine"
 	"github.com/sourcegraph/sourcegraph/internal/workerutil"
+	"github.com/sourcegraph/sourcegraph/internal/workerutil/apiworker/apiclient"
 	dbworkerstore "github.com/sourcegraph/sourcegraph/internal/workerutil/dbworker/store"
 )
 
@@ -62,11 +63,11 @@ func newHandler(store MetadataStore, workerStore dbworkerstore.Store, options Op
 
 // Dequeue pulls an unprocessed index record from the database and assigns the transaction that
 // locks that record to the given indexer.
-func (m *handler) Dequeue(ctx context.Context, indexerName string) (_ workerutil.Record, dequeued bool, _ error) {
+func (m *handler) Dequeue(ctx context.Context, indexerName string) (_ apiclient.Index, dequeued bool, _ error) {
 	select {
 	case <-m.dequeueSemaphore:
 	default:
-		return nil, false, nil
+		return apiclient.Index{}, false, nil
 	}
 	defer func() {
 		if !dequeued {
@@ -79,15 +80,20 @@ func (m *handler) Dequeue(ctx context.Context, indexerName string) (_ workerutil
 
 	record, tx, dequeued, err := m.workerStore.DequeueWithIndependentTransactionContext(ctx, nil)
 	if err != nil {
-		return nil, false, err
+		return apiclient.Index{}, false, err
 	}
 	if !dequeued {
-		return nil, false, nil
+		return apiclient.Index{}, false, nil
+	}
+
+	index, err := m.options.ToIndex(record)
+	if err != nil {
+		return apiclient.Index{}, false, tx.Done(err)
 	}
 
 	now := m.clock.Now()
 	m.addMeta(indexerName, indexMeta{index: record, tx: tx, started: now})
-	return record, true, nil
+	return index, true, nil
 }
 
 // addMeta removes the given index to the given indexer. This method also updates the last

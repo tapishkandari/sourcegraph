@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/sourcegraph/sourcegraph/internal/workerutil/apiworker/apiclient"
 )
 
 func init() {
@@ -27,11 +28,12 @@ func TestHandleWithDocker(t *testing.T) {
 			FirecrackerNumCPUs:    8,
 			FirecrackerMemory:     "32G",
 			FirecrackerDiskSpace:  "50G",
+			Prefix:                ".internal-code-intel/git/",
 		},
 		uuidGenerator: uuid.NewRandom,
 	}
 
-	index := Index{
+	index := apiclient.Index{
 		ID:             42,
 		RepositoryName: "github.com/sourcegraph/sourcegraph",
 		Commit:         "e2249f2173e8ca0c8c2541644847e7bf01aaef4a",
@@ -70,7 +72,7 @@ func TestHandleWithDocker(t *testing.T) {
 			// Index
 			"docker run --rm --cpus 8 --memory 32G -v /tmp/testing:/data -w /data/r3 sourcegraph/lsif-go:latest lsif-go --no-animation",
 			// Upload
-			"docker run --rm --cpus 8 --memory 32G -v /tmp/testing:/data -w /data/r3 -e SRC_ENDPOINT=https://indexer:hunter2@sourcegraph.test:5432 sourcegraph/src-cli:latest lsif upload -no-progress -repo github.com/sourcegraph/sourcegraph -commit e2249f2173e8ca0c8c2541644847e7bf01aaef4a -upload-route /.internal-code-intel/lsif/upload -file nonstandard.lsif",
+			`docker run --rm --cpus 8 --memory 32G -v /tmp/testing:/data -w /data/r3 -e SRC_ENDPOINT="https://indexer:hunter2@sourcegraph.test:5432" sourcegraph/src-cli:latest lsif upload -no-progress -repo github.com/sourcegraph/sourcegraph -commit e2249f2173e8ca0c8c2541644847e7bf01aaef4a -upload-route /.internal-code-intel/lsif/upload -file nonstandard.lsif`,
 		}
 
 		calls := commandRunner.RunFunc.History()
@@ -100,13 +102,14 @@ func TestHandleWithFirecracker(t *testing.T) {
 			FirecrackerMemory:     "32G",
 			FirecrackerDiskSpace:  "50G",
 			ImageArchivePath:      "/images",
+			Prefix:                ".internal-code-intel/git/",
 		},
 		uuidGenerator: func() (uuid.UUID, error) {
 			return uuid.MustParse("97b45daf-53d1-48ad-b992-547469d8e438"), nil
 		},
 	}
 
-	index := Index{
+	index := apiclient.Index{
 		ID:             42,
 		RepositoryName: "github.com/sourcegraph/sourcegraph",
 		Commit:         "e2249f2173e8ca0c8c2541644847e7bf01aaef4a",
@@ -140,14 +143,14 @@ func TestHandleWithFirecracker(t *testing.T) {
 			"git -C /tmp/testing -c protocol.version=2 fetch https://indexer:hunter2@sourcegraph.test:1234/.internal-code-intel/git/github.com/sourcegraph/sourcegraph e2249f2173e8ca0c8c2541644847e7bf01aaef4a",
 			"git -C /tmp/testing checkout e2249f2173e8ca0c8c2541644847e7bf01aaef4a",
 			// Stash docker images
-			"docker pull sourcegraph/src-cli:latest",
-			"docker save -o /images/image0.tar sourcegraph/src-cli:latest",
 			"docker pull install1",
-			"docker save -o /images/image1.tar install1",
+			"docker save -o /images/image0.tar install1",
 			"docker pull install2",
-			"docker save -o /images/image2.tar install2",
+			"docker save -o /images/image1.tar install2",
 			"docker pull sourcegraph/lsif-go:latest",
-			"docker save -o /images/image3.tar sourcegraph/lsif-go:latest",
+			"docker save -o /images/image2.tar sourcegraph/lsif-go:latest",
+			"docker pull sourcegraph/src-cli:latest",
+			"docker save -o /images/image3.tar sourcegraph/src-cli:latest",
 			// VM setup
 			"ignite run --runtime docker --network-plugin docker-bridge --cpus 8 --memory 32G --size 50G --copy-files /tmp/testing:/repo-dir --copy-files /images/image0.tar:/image0.tar --copy-files /images/image1.tar:/image1.tar --copy-files /images/image2.tar:/image2.tar --copy-files /images/image3.tar:/image3.tar --ssh --name 97b45daf-53d1-48ad-b992-547469d8e438 sourcegraph/ignite-ubuntu:latest",
 			// Docker-inside-VM setup
@@ -165,7 +168,7 @@ func TestHandleWithFirecracker(t *testing.T) {
 			// Index
 			"ignite exec 97b45daf-53d1-48ad-b992-547469d8e438 -- docker run --rm --cpus 8 --memory 32G -v /repo-dir:/data -w /data/r3 sourcegraph/lsif-go:latest lsif-go --no-animation",
 			// Upload
-			"ignite exec 97b45daf-53d1-48ad-b992-547469d8e438 -- docker run --rm --cpus 8 --memory 32G -v /repo-dir:/data -w /data/r3 -e SRC_ENDPOINT=https://indexer:hunter2@sourcegraph.test:5432 sourcegraph/src-cli:latest lsif upload -no-progress -repo github.com/sourcegraph/sourcegraph -commit e2249f2173e8ca0c8c2541644847e7bf01aaef4a -upload-route /.internal-code-intel/lsif/upload -file nonstandard.lsif",
+			`ignite exec 97b45daf-53d1-48ad-b992-547469d8e438 -- docker run --rm --cpus 8 --memory 32G -v /repo-dir:/data -w /data/r3 -e SRC_ENDPOINT="https://indexer:hunter2@sourcegraph.test:5432" sourcegraph/src-cli:latest lsif upload -no-progress -repo github.com/sourcegraph/sourcegraph -commit e2249f2173e8ca0c8c2541644847e7bf01aaef4a -upload-route /.internal-code-intel/lsif/upload -file nonstandard.lsif`,
 			// Teardown
 			"ignite stop --runtime docker --network-plugin docker-bridge 97b45daf-53d1-48ad-b992-547469d8e438",
 			"ignite rm -f --runtime docker --network-plugin docker-bridge 97b45daf-53d1-48ad-b992-547469d8e438",

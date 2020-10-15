@@ -1,6 +1,11 @@
 package apiserver
 
-import "time"
+import (
+	"time"
+
+	"github.com/sourcegraph/sourcegraph/internal/workerutil"
+	"github.com/sourcegraph/sourcegraph/internal/workerutil/apiworker/apiclient"
+)
 
 type Options struct {
 	// TODO - document
@@ -26,4 +31,7 @@ type Options struct {
 
 	// TODO - document
 	CleanupInterval time.Duration
+
+	// TODO - document
+	ToIndex func(record workerutil.Record) (apiclient.Index, error)
 }

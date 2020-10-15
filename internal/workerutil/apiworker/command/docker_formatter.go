@@ -9,14 +9,14 @@ import (
 
 type dockerFormatter struct {
 	repoDir string
-	options HandlerOptions
+	options Options
 }
 
 var _ Formatter = &dockerFormatter{}
 
-func NewDockerFormatter(
+func newDockerFormatter(
 	repoDir string,
-	options HandlerOptions,
+	options Options,
 ) Formatter {
 	return &dockerFormatter{
 		repoDir: repoDir,
@@ -32,15 +32,15 @@ func (r *dockerFormatter) Teardown(ctx context.Context, runner Runner, logger *L
 	return nil
 }
 
-func (r *dockerFormatter) FormatCommand(cmd *Cmd) []string {
+func (r *dockerFormatter) FormatCommand(command DockerCommand) []string {
 	return flatten(
 		"docker", "run", "--rm",
 		r.resourceFlags(),
 		r.volumeFlags(),
-		r.workingdirectoryFlags(cmd.wd),
-		r.envFlags(cmd.env),
-		cmd.image,
-		cmd.command,
+		r.workingdirectoryFlags(command.WorkingDir),
+		r.envFlags(command.Env),
+		command.Image,
+		command.Arguments,
 	)
 }
 
@@ -59,11 +59,6 @@ func (r *dockerFormatter) workingdirectoryFlags(wd string) []string {
 	return []string{"-w", filepath.Join("/data", wd)}
 }
 
-func (r *dockerFormatter) envFlags(env map[string]string) []string {
-	var flattened []string
-	for _, key := range orderedKeys(env) {
-		flattened = append(flattened, fmt.Sprintf("%s=%s", key, env[key]))
-	}
-
-	return intersperse("-e", flattened)
+func (r *dockerFormatter) envFlags(env []string) []string {
+	return intersperse("-e", env)
 }

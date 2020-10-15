@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 
 	"github.com/inconshreveable/log15"
@@ -15,7 +16,7 @@ import (
 type firecrackerFormatter struct {
 	name      string
 	repoDir   string
-	options   HandlerOptions
+	options   Options
 	formatter Formatter
 }
 
@@ -23,12 +24,12 @@ var _ Formatter = &firecrackerFormatter{}
 
 const FirecrackerRepoDir = "/repo-dir"
 
-func NewFirecrackerFormatter(name string, repoDir string, options HandlerOptions) Formatter {
+func newFirecrackerFormatter(name string, repoDir string, options Options) Formatter {
 	return &firecrackerFormatter{
 		name:      name,
 		repoDir:   repoDir,
 		options:   options,
-		formatter: NewDockerFormatter(FirecrackerRepoDir, options),
+		formatter: newDockerFormatter(FirecrackerRepoDir, options),
 	}
 }
 
@@ -115,8 +116,8 @@ func (r *firecrackerFormatter) Teardown(ctx context.Context, runner Runner, logg
 	return nil
 }
 
-func (r *firecrackerFormatter) FormatCommand(cmd *Cmd) []string {
-	return flatten("ignite", "exec", r.name, "--", r.formatter.FormatCommand(cmd))
+func (r *firecrackerFormatter) FormatCommand(command DockerCommand) []string {
+	return flatten("ignite", "exec", r.name, "--", r.formatter.FormatCommand(command))
 }
 
 func (r *firecrackerFormatter) saveDockerImage(ctx context.Context, runner Runner, logger *Logger, key, image string) error {
@@ -186,4 +187,14 @@ func sanitizeImage(image string) string {
 	}
 
 	return image
+}
+
+func orderedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	return keys
 }

@@ -46,7 +46,7 @@ func New(options Options) *Client {
 // Dequeue returns a queued index record for processing. This record can be marked as completed
 // or failed by calling Complete with the same identifier. While processing, the identifier of
 // the record must appear in all heartbeat requests.
-func (c *Client) Dequeue(ctx context.Context, index interface{}) (bool, error) {
+func (c *Client) Dequeue(ctx context.Context, index *Index) (bool, error) {
 	url, err := makeIndexManagerURL(c.options.FrontendURL, c.options.FrontendAuthToken, c.options.Prefix, "dequeue")
 	if err != nil {
 		return false, err

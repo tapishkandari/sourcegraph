@@ -32,9 +32,7 @@ func TestDequeue(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	var index struct {
-		ID int `json:"id"`
-	}
+	var index Index
 	dequeued, err := testClient(ts.URL).Dequeue(context.Background(), &index)
 	if err != nil {
 		t.Fatalf("unexpected error dequeueing record: %s", err)
