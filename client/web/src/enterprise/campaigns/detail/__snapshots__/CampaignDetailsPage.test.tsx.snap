@@ -75,9 +75,14 @@ exports[`CampaignDetailsPage viewerCanAdminister: false viewing existing 1`] = `
           <CampaignsIconWithBetaBadge
             className="icon-inline page-header__icon"
           >
-            <Memo(CampaignsFlushEdgesIcon)
+            <Memo()
               className="icon-inline page-header__icon"
-            />
+            >
+              <Memo(BaseCampaignsIcon)
+                className="icon-inline page-header__icon"
+                viewBox="16.844 0 490.49 490.49"
+              />
+            </Memo()>
              
             <sup>
               <span
@@ -1047,9 +1052,14 @@ exports[`CampaignDetailsPage viewerCanAdminister: true viewing existing 1`] = `
           <CampaignsIconWithBetaBadge
             className="icon-inline page-header__icon"
           >
-            <Memo(CampaignsFlushEdgesIcon)
+            <Memo()
               className="icon-inline page-header__icon"
-            />
+            >
+              <Memo(BaseCampaignsIcon)
+                className="icon-inline page-header__icon"
+                viewBox="16.844 0 490.49 490.49"
+              />
+            </Memo()>
              
             <sup>
               <span

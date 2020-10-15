@@ -36,9 +36,14 @@ exports[`CampaignsDotComPage renders 1`] = `
           <h1
             className="flex-grow-1"
           >
-            <Memo(CampaignsFlushEdgesIcon)
+            <Memo()
               className="icon-inline page-header__icon"
-            />
+            >
+              <Memo(BaseCampaignsIcon)
+                className="icon-inline page-header__icon"
+                viewBox="16.844 0 490.49 490.49"
+              />
+            </Memo()>
              
             Campaigns
              

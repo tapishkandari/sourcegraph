@@ -1,30 +1,71 @@
 import React from 'react'
-import ImageAutoAdjustIcon from 'mdi-react/ImageAutoAdjustIcon'
 
 /**
- * The icon to use everywhere to represent a campaign. If the icon's left side needs to be flush
- * with the left edge, use {@link CampaignsIconFlushEdges} instead. (Same goes for any other side,
- * but flush left is the most common.)
+ * The base campaign icon, which has its viewBox modified by the exported icon
+ * components below.
  */
-export const CampaignsIcon = ImageAutoAdjustIcon
-
-/**
- * The same icon as {@link CampaignsIcon}, except the icon has no padding. This is important when,
- * for example, the icon's left edge needs to be flush with the left edges of other content
- * displayed above and below it.
- *
- * The only difference is in the following attribute: `<svg viewBox="3 0 24 24">`.
- */
-export const CampaignsFlushEdgesIcon: React.FunctionComponent<{ className?: string }> = React.memo(
-    function CampaignsFlushEdgesIcon({ className = '' }) {
+const BaseCampaignsIcon: React.FunctionComponent<{ className?: string; viewBox: string }> = React.memo(
+    function BaseCampaignsIcon({ className = '', viewBox }) {
         return (
-            <svg fill="currentColor" width={24} height={24} className={`mdi-icon ${className}`} viewBox="3 0 24 24">
-                <path d="M19 10V19H5V5H14V3H5C3.92 3 3 3.9 3 5V19C3 20.1 3.92 21 5 21H19C20.12 21 21 20.1 21 19V10H19M17 10L17.94 7.94L20 7L17.94 6.06L17 4L16.06 6.06L14 7L16.06 7.94L17 10M13.25 10.75L12 8L10.75 10.75L8 12L10.75 13.25L12 16L13.25 13.25L16 12L13.25 10.75Z" />
+            <svg
+                width="24"
+                height="24"
+                className={className}
+                viewBox={viewBox}
+                fill="#1C7CD6"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M91.1233 103.991C107.533 103.991 120.835 90.6883 120.835 74.2791C120.835 57.8698 107.533 44.5674 91.1233 44.5674C74.714 44.5674 61.4117 57.8698 61.4117 74.2791C61.4117 90.6883 74.714 103.991 91.1233 103.991ZM91.1233 148.558C132.146 148.558 165.402 115.302 165.402 74.2791C165.402 33.2559 132.146 0 91.1233 0C50.1001 0 16.8442 33.2559 16.8442 74.2791C16.8442 115.302 50.1001 148.558 91.1233 148.558Z"
+                />
+                <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M180.256 89.1344C180.256 80.9297 186.907 74.2786 195.111 74.2786L313.958 74.2786C322.163 74.2786 328.814 80.9297 328.814 89.1344C328.814 97.339 322.163 103.99 313.958 103.99L195.111 103.99C186.907 103.99 180.256 97.339 180.256 89.1344Z"
+                />
+                <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M92.7627 163.504C84.6083 162.598 77.2633 168.474 76.3572 176.629L91.1222 178.269C76.3572 176.629 76.3578 176.624 76.3572 176.629L76.3514 176.682L76.3403 176.784L76.3038 177.133L76.18 178.391C76.0777 179.473 75.9394 181.035 75.7872 183.029C75.4828 187.016 75.1221 192.739 74.8822 199.818C74.4029 213.955 74.4016 233.605 76.3222 255.692C80.1132 299.289 91.5881 354.905 124.089 395.531C157.174 436.887 206.115 452.69 244.905 458.508C264.492 461.446 282.066 461.931 294.747 461.687C301.102 461.565 306.266 461.259 309.886 460.978C311.697 460.838 313.125 460.703 314.125 460.601L315.299 460.474L315.637 460.435L315.741 460.422L315.777 460.418C315.783 460.417 315.802 460.415 313.96 445.674L315.777 460.418C323.919 459.4 329.718 451.972 328.701 443.831C327.684 435.696 320.269 429.923 312.134 430.93C312.132 430.931 312.137 430.93 312.134 430.93L311.934 430.954L311.096 431.044C310.326 431.123 309.142 431.235 307.588 431.356C304.476 431.597 299.891 431.871 294.176 431.981C282.716 432.202 266.864 431.758 249.312 429.125C213.823 423.802 173.628 409.893 147.29 376.97C120.368 343.318 109.559 294.943 105.922 253.118C104.129 232.495 104.127 214.078 104.577 200.824C104.801 194.208 105.137 188.905 105.413 185.29C105.551 183.483 105.673 182.1 105.76 181.187L105.859 180.178L105.883 179.949L105.887 179.91C106.79 171.758 100.915 164.41 92.7627 163.504Z"
+                />
+                <path d="M358.524 29.7114H462.515V133.702H358.524V29.7114Z" />
+                <path d="M358.524 207.981H462.515V311.972H358.524V207.981Z" />
+                <path d="M358.524 386.251H462.515V490.242H358.524V386.251Z" />
+                <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M84.0234 165.218C76.8153 169.137 74.149 178.157 78.0681 185.366L91.1196 178.269C78.0681 185.366 78.0653 185.36 78.0681 185.366L78.0942 185.413L78.1305 185.479L78.2339 185.665L78.5647 186.248C78.8406 186.727 79.228 187.386 79.7288 188.205C80.7301 189.843 82.1875 192.127 84.118 194.907C87.975 200.461 93.7459 208.028 101.572 216.384C117.203 233.073 141.246 253.131 174.803 266.368C208.079 279.494 243.429 283.331 270 284.008C283.374 284.348 294.737 283.893 302.795 283.348C306.829 283.075 310.046 282.779 312.287 282.547C313.408 282.431 314.285 282.331 314.9 282.257L315.622 282.168L315.83 282.142L315.896 282.133L315.927 282.129C315.931 282.128 315.935 282.128 314.092 268.413L315.927 282.129C324.059 281.036 329.773 273.558 328.68 265.426C327.588 257.298 320.117 251.593 311.989 252.679C311.986 252.68 311.993 252.679 311.989 252.679L313.957 267.404C311.979 252.681 311.987 252.68 311.989 252.679L311.877 252.694L311.374 252.756C310.909 252.811 310.187 252.894 309.227 252.993C307.308 253.192 304.443 253.457 300.79 253.704C293.476 254.198 283.05 254.619 270.756 254.306C245.991 253.675 214.49 250.084 185.706 238.729C157.203 227.485 136.679 210.403 123.257 196.073C116.557 188.919 111.681 182.507 108.522 177.959C106.944 175.687 105.801 173.89 105.08 172.709C104.719 172.119 104.464 171.684 104.313 171.422L104.164 171.161C100.243 163.959 91.2285 161.301 84.0234 165.218Z"
+                />
             </svg>
         )
     }
 )
 
+/**
+ * The icon to use everywhere to represent a campaign. Square, and by default
+ * 24x24. If the icon's left side needs to be flush with the left edge, use
+ * {@link CampaignsIconFlushEdges} instead. (Same goes for any other side, but
+ * flush left is the most common.)
+ */
+export const CampaignsIcon: React.FunctionComponent<{ className?: string }> = React.memo(({ className }) => (
+    <BaseCampaignsIcon className={className} viewBox="-5.323 0 490.49 490.49" />
+))
+
+/**
+ * The same icon as {@link CampaignsIcon}, except the icon has no padding. This
+ * is important when, for example, the icon's left edge needs to be flush with
+ * the left edges of other content displayed above and below it.
+ */
+export const CampaignsFlushEdgesIcon: React.FunctionComponent<{ className?: string }> = React.memo(({ className }) => (
+    <BaseCampaignsIcon className={className} viewBox="16.844 0 490.49 490.49" />
+))
+
+/**
+ * The same icon as {@link CampaignsFlushEdgesIcon}, except with a nifty beta
+ * badge next to it.
+ */
 export const CampaignsIconWithBetaBadge: React.FunctionComponent<{ className?: string }> = ({ className = '' }) => (
     <>
         <CampaignsFlushEdgesIcon className={className} />{' '}

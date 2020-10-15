@@ -51,13 +51,23 @@ exports[`CampaignsNavItem renders 1`] = `
                 href="/campaigns"
                 onClick={[Function]}
               >
-                <Memo(ImageAutoAdjustIcon)
+                <Memo()
                   className="icon-inline d-lg-none"
                   data-tooltip="Campaigns"
-                />
-                <Memo(ImageAutoAdjustIcon)
+                >
+                  <Memo(BaseCampaignsIcon)
+                    className="icon-inline d-lg-none"
+                    viewBox="-5.323 0 490.49 490.49"
+                  />
+                </Memo()>
+                <Memo()
                   className="icon-inline d-none d-lg-inline-block"
-                />
+                >
+                  <Memo(BaseCampaignsIcon)
+                    className="icon-inline d-none d-lg-inline-block"
+                    viewBox="-5.323 0 490.49 490.49"
+                  />
+                </Memo()>
                 <span
                   className="d-none d-lg-inline-block ml-1"
                 >
